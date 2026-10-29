@@ -11,14 +11,19 @@ function loadCards(reduceMotion = false) {
     constructor(tag) {
       this.tagName = tag;
       this.children = [];
+      this.style = {};
       this.listeners = {};
       this.classList = { add() {}, remove() {}, toggle() {} };
       this.context = {
         draws: [],
+        text: [],
+        letterSpacing: "0px",
+        measureText(text) { return { width: text.length * parseFloat(this.font.split(" ")[1]) * 0.6 }; },
+        fillText(...args) { this.text.push(args); },
         drawImage(...args) { this.draws.push(args); },
         createLinearGradient() { return { addColorStop() {} }; },
       };
-      for (const name of ["fillRect", "beginPath", "arc", "fill", "stroke", "moveTo", "lineTo", "save", "rect", "clip", "restore"]) {
+      for (const name of ["clearRect", "fillRect", "beginPath", "arc", "fill", "stroke", "moveTo", "lineTo", "save", "rect", "clip", "restore"]) {
         this.context[name] = () => {};
       }
       if (tag === "video") {
@@ -44,22 +49,62 @@ function loadCards(reduceMotion = false) {
   }
   const container = new Element("main");
   const title = new Element("canvas");
+  title.parentElement = { fontSize: "168px", fontWeight: "700", letterSpacing: "-6.72px" };
+  const projectsTitle = new Element("canvas");
+  projectsTitle.parentElement = { fontSize: "32px", fontWeight: "600", letterSpacing: "-0.64px" };
+  const frames = [];
   const context = vm.createContext({
     document: {
       createElement: (tag) => new Element(tag),
-      getElementById: (id) => id === "projects" ? container : title,
+      getElementById: (id) => ({ projects: container, title, "projects-title": projectsTitle })[id],
       fonts: { load: () => new Promise(() => {}) },
     },
     window: { devicePixelRatio: 1, addEventListener() {} },
     matchMedia: (query) => ({ matches: query.includes("reduced-motion") && reduceMotion }),
     performance: { now: () => 0 },
-    requestAnimationFrame() {},
+    getComputedStyle: (element) => element,
+    requestAnimationFrame(callback) { frames.push(callback); },
     setTimeout() {},
   });
   vm.runInContext(source, context);
   vm.runInContext("resizeCards()", context);
-  return { context, cards: vm.runInContext("cards", context), container };
+  return { context, cards: vm.runInContext("cards", context), container, title, projectsTitle, frames };
 }
+
+test("both headings resolve together and retain their typography after resizing", () => {
+  const { context, title, projectsTitle, frames } = loadCards();
+  vm.runInContext("sizeTitle(); playTitle(() => { globalThis.finished = true; })", context);
+  frames.shift()(0);
+  const firstWidth = projectsTitle.context.draws.at(-1)[3];
+  assert.equal(projectsTitle.context.globalAlpha, 1);
+  assert.equal(projectsTitle.context.imageSmoothingEnabled, false);
+  frames.shift()(522.5);
+  assert.ok(projectsTitle.context.draws.at(-1)[3] > firstWidth);
+  assert.equal(context.finished, undefined);
+  frames.shift()(1045);
+  assert.equal(context.finished, true);
+  for (const canvas of [title, projectsTitle]) {
+    const draw = canvas.context.draws.at(-1);
+    assert.equal(draw[3], canvas.width, "final frame resolves at full resolution");
+  }
+  const off = projectsTitle.context.draws.at(-1)[0];
+  assert.equal(off.context.text.at(-1)[0], "Featured Projects");
+  assert.equal(off.context.font, '600 32px "Space Grotesk", system-ui, sans-serif');
+  assert.equal(off.context.letterSpacing, "-0.64px");
+  projectsTitle.parentElement.fontSize = "24px";
+  vm.runInContext("sizeTitle(); drawTitle()", context);
+  assert.equal(off.context.font, '600 24px "Space Grotesk", system-ui, sans-serif');
+});
+
+test("reduced motion renders both headings sharp without scheduling animation", () => {
+  const { context, title, projectsTitle, frames } = loadCards(true);
+  vm.runInContext("sizeTitle(); playTitle(() => { globalThis.finished = true; })", context);
+  assert.equal(context.finished, true);
+  assert.equal(frames.length, 0);
+  for (const canvas of [title, projectsTitle]) {
+    assert.equal(canvas.context.draws.at(-1)[3], canvas.width);
+  }
+});
 
 test("video card stays in the shared idle, hover ripple, and return animation", () => {
   const { context, cards } = loadCards();

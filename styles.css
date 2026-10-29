@@ -38,7 +38,7 @@ body {
   letter-spacing: -0.04em;
   line-height: 1;
 }
-.title canvas { display: block; }
+.title canvas, .projects-heading canvas { display: block; }
 
 /* ---------- Project cards ---------- */
 .projects {

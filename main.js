@@ -1,26 +1,33 @@
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ---------- Title: resolves from chunky pixels to sharp ---------- */
+/* ---------- Headings: resolve from chunky pixels to sharp ---------- */
 const TITLE_STEPS = [56, 40, 28, 20, 14, 10, 7, 5, 3, 2, 1]; // pixel sizes, coarse -> sharp
 const TITLE_STEP_MS = 95;
-const titleCanvas = document.getElementById("title");
-const titleCtx = titleCanvas.getContext("2d");
-const titleOff = document.createElement("canvas");
-const titleOffCtx = titleOff.getContext("2d");
+const headings = [
+  { id: "title", parts: [["retrac", "#f3f0ff"], [".space", "#8b86a3"]] },
+  { id: "projects-title", parts: [["Featured Projects", "#f3f0ff"]] },
+].map(({ id, parts }) => {
+  const canvas = document.getElementById(id);
+  const off = document.createElement("canvas");
+  return { canvas, ctx: canvas.getContext("2d"), off, offCtx: off.getContext("2d"), parts };
+});
 let titlePx = reduceMotion ? 1 : TITLE_STEPS[0];
 let titleAlpha = reduceMotion ? 1 : 0;
 
-function titleFont(size) {
-  return `700 ${size}px "Space Grotesk", system-ui, sans-serif`;
+function titleFont(size, weight = 700) {
+  return `${weight} ${size}px "Space Grotesk", system-ui, sans-serif`;
 }
 
-function sizeTitle() {
+function sizeHeading(heading) {
+  const { canvas: titleCanvas, ctx: titleCtx, parts } = heading;
   const css = getComputedStyle(titleCanvas.parentElement);
   const fs = parseFloat(css.fontSize);
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  titleCtx.font = titleFont(fs);
-  if ("letterSpacing" in titleCtx) titleCtx.letterSpacing = `${-0.04 * fs}px`;
-  const w = Math.ceil(titleCtx.measureText("retrac.space").width + fs * 0.1);
+  heading.weight = css.fontWeight;
+  heading.spacing = (parseFloat(css.letterSpacing) || 0) / fs;
+  titleCtx.font = titleFont(fs, heading.weight);
+  if ("letterSpacing" in titleCtx) titleCtx.letterSpacing = `${heading.spacing * fs}px`;
+  const w = Math.ceil(titleCtx.measureText(parts.map(([text]) => text).join("")).width + fs * 0.1);
   const h = Math.ceil(fs * 1.3);
   titleCanvas.style.width = w + "px";
   titleCanvas.style.height = h + "px";
@@ -29,7 +36,8 @@ function sizeTitle() {
   titleCanvas.fs = fs * dpr;
 }
 
-function drawTitle() {
+function drawHeading(heading) {
+  const { canvas: titleCanvas, ctx: titleCtx, off: titleOff, offCtx: titleOffCtx, parts } = heading;
   const W = titleCanvas.width, H = titleCanvas.height;
   const px = Math.max(1, titlePx * (titleCanvas.width / parseFloat(titleCanvas.style.width)));
   const lw = Math.max(1, Math.ceil(W / px)), lh = Math.max(1, Math.ceil(H / px));
@@ -39,14 +47,16 @@ function drawTitle() {
   const s = lw / W, fs = titleCanvas.fs * s;
   const c = titleOffCtx;
   c.clearRect(0, 0, lw, lh);
-  c.font = titleFont(fs);
-  if ("letterSpacing" in c) c.letterSpacing = `${-0.04 * fs}px`;
+  c.font = titleFont(fs, heading.weight);
+  if ("letterSpacing" in c) c.letterSpacing = `${heading.spacing * fs}px`;
   c.textBaseline = "middle";
-  const x = fs * 0.05, y = lh / 2;
-  c.fillStyle = "#f3f0ff";
-  c.fillText("retrac", x, y);
-  c.fillStyle = "#8b86a3";
-  c.fillText(".space", x + c.measureText("retrac").width, y);
+  let x = fs * 0.05;
+  const y = lh / 2;
+  for (const [text, color] of parts) {
+    c.fillStyle = color;
+    c.fillText(text, x, y);
+    x += c.measureText(text).width;
+  }
 
   titleCtx.clearRect(0, 0, W, H);
   titleCtx.imageSmoothingEnabled = false;
@@ -54,6 +64,9 @@ function drawTitle() {
   titleCtx.drawImage(titleOff, 0, 0, lw, lh, 0, 0, W, H);
   titleCtx.globalAlpha = 1;
 }
+
+function sizeTitle() { headings.forEach(sizeHeading); }
+function drawTitle() { headings.forEach(drawHeading); }
 
 function playTitle(done) {
   if (reduceMotion) { drawTitle(); done(); return; }
@@ -283,8 +296,8 @@ function frame(now) {
 /* ---------- Boot ---------- */
 window.addEventListener("resize", () => { sizeTitle(); drawTitle(); resizeCards(); });
 
-// wait for the font so the title is measured and drawn in Space Grotesk (but never hang on it)
-const fontReady = document.fonts.load(titleFont(100)).catch(() => {});
+// Wait for both font weights before measuring the headings (but never hang on them).
+const fontReady = Promise.all([700, 600].map((weight) => document.fonts.load(titleFont(100, weight)))).catch(() => {});
 Promise.race([fontReady, new Promise((r) => setTimeout(r, 1500))]).then(() => {
   sizeTitle();
   resizeCards();
