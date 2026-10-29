@@ -73,7 +73,11 @@ function playTitle(done) {
 
 /* ---------- Projects ---------- */
 const projects = [
-  { name: "Coming Soon", scene: "nebula" },
+  {
+    name: "Retrac Labs",
+    video: "assets/retrac-labs-loop.mp4",
+    href: "https://retraclabs.io/?utm_source=retrac.space&utm_medium=referral&utm_campaign=personal_site",
+  },
   { name: "Coming Soon", scene: "synth" },
 ];
 
@@ -143,14 +147,22 @@ const container = document.getElementById("projects");
 const cards = [];
 
 projects.forEach((p) => {
-  const el = document.createElement("article");
+  const el = document.createElement(p.href ? "a" : "article");
   el.className = "card";
+  if (p.href) {
+    el.href = p.href;
+    el.target = "_blank";
+    el.rel = "noopener noreferrer";
+  }
   el.innerHTML = `
-    <canvas></canvas>
+    ${p.video
+      ? `<video src="${p.video}" ${reduceMotion ? "" : "autoplay"} loop muted playsinline preload="auto" aria-hidden="true"></video>`
+      : "<canvas></canvas>"}
     <div class="info"><h2>${p.name}</h2></div>`;
   container.appendChild(el);
 
   const canvas = el.querySelector("canvas");
+  if (!canvas) return;
   const card = {
     el, canvas, ctx: canvas.getContext("2d"),
     draw: scenes[p.scene](),
@@ -256,6 +268,6 @@ Promise.race([fontReady, new Promise((r) => setTimeout(r, 1500))]).then(() => {
   resizeCards();
   requestAnimationFrame(frame);
   playTitle(() => {
-    cards.forEach((c, i) => setTimeout(() => c.el.classList.add("shown"), reduceMotion ? 0 : i * 140));
+    container.querySelectorAll(".card").forEach((el, i) => setTimeout(() => el.classList.add("shown"), reduceMotion ? 0 : i * 140));
   });
 });
