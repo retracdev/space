@@ -137,6 +137,19 @@ const scenes = {
   },
 };
 
+function videoScene(video) {
+  return (c, w, h) => {
+    c.fillStyle = "#0b0620";
+    c.fillRect(0, 0, w, h);
+    if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+
+    // Center-crop like object-fit: cover before the shared pixel/ripple pass.
+    const scale = Math.max(w / video.videoWidth, h / video.videoHeight);
+    const sw = w / scale, sh = h / scale;
+    c.drawImage(video, (video.videoWidth - sw) / 2, (video.videoHeight - sh) / 2, sw, sh, 0, 0, w, h);
+  };
+}
+
 /* ---------- Card setup & render loop ---------- */
 const MAX_PIXEL = 16;              // how chunky when idle
 const IDLE_SPEED = 0.15;           // animation speed when not hovered
@@ -155,17 +168,20 @@ projects.forEach((p) => {
     el.rel = "noopener noreferrer";
   }
   el.innerHTML = `
+    <canvas aria-hidden="true"></canvas>
     ${p.video
-      ? `<video src="${p.video}" ${reduceMotion ? "" : "autoplay"} loop muted playsinline preload="auto" aria-hidden="true"></video>`
-      : "<canvas></canvas>"}
+      ? `<video hidden src="${p.video}" ${reduceMotion ? "" : "autoplay"} loop muted playsinline preload="auto" aria-hidden="true"></video>`
+      : ""}
     <div class="info"><h2>${p.name}</h2></div>`;
   container.appendChild(el);
 
   const canvas = el.querySelector("canvas");
-  if (!canvas) return;
+  const video = el.querySelector("video");
+  // Explicit playback also supports muted video sources hidden behind a canvas.
+  if (video && !reduceMotion) video.play().catch(() => {});
   const card = {
     el, canvas, ctx: canvas.getContext("2d"),
-    draw: scenes[p.scene](),
+    draw: video ? videoScene(video) : scenes[p.scene](),
     hover: false, r: 0, ox: 0.5, oy: 0.5,
     speed: IDLE_SPEED, t: Math.random() * 100,
     offs: {},
