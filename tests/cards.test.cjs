@@ -106,10 +106,11 @@ test("reduced motion renders both headings sharp without scheduling animation", 
   }
 });
 
-test("video card stays in the shared idle, hover ripple, and return animation", () => {
+["Retrac Labs", "Retrac's Rickroll", "Membrain"].forEach((name, index) => {
+test(`${name} stays in the shared idle, hover ripple, and return animation`, () => {
   const { context, cards } = loadCards();
-  assert.equal(cards.length, 2);
-  const card = cards[0];
+  assert.equal(cards.length, 3);
+  const card = cards[index];
   const video = card.el.querySelector("video");
   assert.equal(video.playCalls, 1);
   assert.equal(video.rateAtPlay, 0.15, "video starts at the shared idle speed");
@@ -144,6 +145,7 @@ test("video card stays in the shared idle, hover ripple, and return animation", 
   assert.equal(card.ctx.draws.at(-1)[0], card.offs[16].cv);
   assert.ok(cards[1].offs[16], "the Rickroll card also renders");
   assert.equal(cards[1].offs[16].ctx.draws.at(-1)[0], cards[1].video);
+});
 });
 
 test("video loading and aspect ratios are safe for canvas rendering", () => {
@@ -188,4 +190,14 @@ test("the full-card referral link and reduced-motion playback are preserved", ()
   assert.ok(rickroll.el.html.includes('src="assets/retrac-rickroll-loop.mp4"'));
   assert.equal(rickroll.video.playCalls, 0);
   assert.ok(!rickroll.el.html.includes("autoplay"));
+  const membrain = cards[2];
+  assert.equal(membrain.el.tagName, "a");
+  assert.equal(membrain.el.href, "https://github.com/retracdev/membrain");
+  assert.equal(membrain.el.target, "_blank");
+  assert.equal(membrain.el.rel, "noopener noreferrer");
+  assert.ok(membrain.el.html.includes("<h2>Membrain</h2>"));
+  assert.ok(membrain.el.html.includes('src="assets/membrain-loop.mp4"'));
+  assert.ok(membrain.el.html.includes("loop muted playsinline"));
+  assert.equal(membrain.video.playCalls, 0);
+  assert.ok(!membrain.el.html.includes("autoplay"));
 });
