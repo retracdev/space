@@ -26,7 +26,8 @@ function loadCards(reduceMotion = false) {
         this.videoWidth = 1920;
         this.videoHeight = 1080;
         this.playCalls = 0;
-        this.play = () => { this.playCalls++; return Promise.resolve(); };
+        this.playbackRate = 1;
+        this.play = () => { this.playCalls++; this.rateAtPlay = this.playbackRate; return Promise.resolve(); };
       }
     }
     set innerHTML(html) {
@@ -66,8 +67,10 @@ test("video card stays in the shared idle, hover ripple, and return animation", 
   const card = cards[0];
   const video = card.el.querySelector("video");
   assert.equal(video.playCalls, 1);
+  assert.equal(video.rateAtPlay, 0.15, "video starts at the shared idle speed");
 
   vm.runInContext("frame(16)", context);
+  assert.equal(video.playbackRate, 0.15);
   assert.equal(card.ctx.imageSmoothingEnabled, false);
   assert.equal(card.offs[16].cv.width, 36);
   assert.equal(card.offs[16].ctx.draws.at(-1)[0], video);
@@ -75,15 +78,23 @@ test("video card stays in the shared idle, hover ripple, and return animation", 
   card.el.listeners.pointerenter({ pointerType: "mouse", clientX: 100, clientY: 80 });
   for (let now = 32; now <= 400; now += 16) vm.runInContext(`frame(${now})`, context);
   assert.ok(card.r > 0 && card.r < 1);
+  assert.ok(video.playbackRate > 0.15 && video.playbackRate < 1);
+  assert.equal(video.playbackRate, card.speed, "video follows the shared hover acceleration");
   assert.equal(card.offs[10].ctx.draws.at(-1)[0], video);
 
   for (let now = 416; now <= 1200; now += 16) vm.runInContext(`frame(${now})`, context);
   assert.equal(card.r, 1);
+  assert.ok(video.playbackRate > 0.99 && video.playbackRate <= 1);
   assert.equal(card.offs[1].cv.width, 576);
   assert.equal(card.offs[1].ctx.draws.at(-1)[0], video);
 
   card.el.listeners.pointerleave({ pointerType: "mouse" });
-  for (let now = 1216; now <= 2208; now += 16) vm.runInContext(`frame(${now})`, context);
+  const hoveredRate = video.playbackRate;
+  vm.runInContext("frame(1216)", context);
+  assert.ok(video.playbackRate < hoveredRate && video.playbackRate > 0.15);
+  assert.equal(video.playbackRate, card.speed, "video follows the shared return to idle");
+  for (let now = 1232; now <= 2208; now += 16) vm.runInContext(`frame(${now})`, context);
+  assert.ok(Math.abs(video.playbackRate - 0.15) < 0.02);
   assert.equal(card.r, 0);
   assert.equal(card.ctx.draws.at(-1)[0], card.offs[16].cv);
   assert.ok(cards[1].offs[16], "the procedural card still renders");

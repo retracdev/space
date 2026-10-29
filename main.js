@@ -177,10 +177,11 @@ projects.forEach((p) => {
 
   const canvas = el.querySelector("canvas");
   const video = el.querySelector("video");
+  if (video) video.playbackRate = IDLE_SPEED;
   // Explicit playback also supports muted video sources hidden behind a canvas.
   if (video && !reduceMotion) video.play().catch(() => {});
   const card = {
-    el, canvas, ctx: canvas.getContext("2d"),
+    el, canvas, video, ctx: canvas.getContext("2d"),
     draw: video ? videoScene(video) : scenes[p.scene](),
     hover: false, r: 0, ox: 0.5, oy: 0.5,
     speed: IDLE_SPEED, t: Math.random() * 100,
@@ -225,6 +226,7 @@ function frame(now) {
   last = now;
   for (const c of cards) {
     c.speed += ((c.hover ? 1 : IDLE_SPEED) - c.speed) * Math.min(1, dt * 4);
+    if (c.video) c.video.playbackRate = c.speed;
     c.t += dt * c.speed;
     c.r = Math.min(1, Math.max(0, c.r + (c.hover ? 1 : -1.4) * dt / RIPPLE_TIME));
 
