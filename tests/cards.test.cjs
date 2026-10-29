@@ -196,7 +196,7 @@ test("the full-card referral link and reduced-motion playback are preserved", ()
   assert.equal(membrain.el.target, "_blank");
   assert.equal(membrain.el.rel, "noopener noreferrer");
   assert.ok(membrain.el.html.includes("<h2>Membrain</h2>"));
-  assert.ok(membrain.el.html.includes('src="assets/membrain-loop.mp4"'));
+  assert.ok(membrain.el.html.includes('src="assets/membrain-loop.mp4#t=3"'));
   assert.ok(membrain.el.html.includes("loop muted playsinline"));
   assert.equal(membrain.video.playCalls, 0);
   assert.ok(!membrain.el.html.includes("autoplay"));

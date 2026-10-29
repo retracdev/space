@@ -98,7 +98,7 @@ const projects = [
   },
   {
     name: "Membrain",
-    video: "assets/membrain-loop.mp4",
+    video: "assets/membrain-loop.mp4#t=3",
     href: "https://github.com/retracdev/membrain",
   },
 ];
