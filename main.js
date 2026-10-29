@@ -78,7 +78,11 @@ const projects = [
     video: "assets/retrac-labs-loop.mp4",
     href: "https://retraclabs.io/?utm_source=retrac.space&utm_medium=referral&utm_campaign=personal_site",
   },
-  { name: "Coming Soon", scene: "synth" },
+  {
+    name: "Retrac's Rickroll",
+    video: "assets/retrac-rickroll-loop.mp4",
+    href: "https://surprise.retrac.space/",
+  },
 ];
 
 /* ---------- Scenes: draw(ctx, w, h, t) ---------- */
