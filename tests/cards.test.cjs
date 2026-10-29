@@ -97,7 +97,8 @@ test("video card stays in the shared idle, hover ripple, and return animation", 
   assert.ok(Math.abs(video.playbackRate - 0.15) < 0.02);
   assert.equal(card.r, 0);
   assert.equal(card.ctx.draws.at(-1)[0], card.offs[16].cv);
-  assert.ok(cards[1].offs[16], "the procedural card still renders");
+  assert.ok(cards[1].offs[16], "the Rickroll card also renders");
+  assert.equal(cards[1].offs[16].ctx.draws.at(-1)[0], cards[1].video);
 });
 
 test("video loading and aspect ratios are safe for canvas rendering", () => {
@@ -133,5 +134,13 @@ test("the full-card referral link and reduced-motion playback are preserved", ()
   assert.equal(card.el.rel, "noopener noreferrer");
   assert.equal(card.el.querySelector("video").playCalls, 0);
   assert.ok(!card.el.html.includes("autoplay"));
-  assert.equal(cards[1].el.tagName, "article");
+  const rickroll = cards[1];
+  assert.equal(rickroll.el.tagName, "a");
+  assert.equal(rickroll.el.href, "https://surprise.retrac.space/");
+  assert.equal(rickroll.el.target, "_blank");
+  assert.equal(rickroll.el.rel, "noopener noreferrer");
+  assert.ok(rickroll.el.html.includes("<h2>Retrac's Rickroll</h2>"));
+  assert.ok(rickroll.el.html.includes('src="assets/retrac-rickroll-loop.mp4"'));
+  assert.equal(rickroll.video.playCalls, 0);
+  assert.ok(!rickroll.el.html.includes("autoplay"));
 });
