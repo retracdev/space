@@ -1,0 +1,90 @@
+:root {
+  --bg: #07060d;
+  --fg: #f3f0ff;
+  --muted: #8b86a3;
+  --line: rgba(255, 255, 255, 0.1);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Title ---------- */
+.hero {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(64px, 12vh, 140px) 24px clamp(48px, 8vh, 96px);
+  display: flex;
+  justify-content: center;
+}
+.title {
+  /* font-size drives the canvas text size (read in main.js) */
+  font-size: clamp(56px, 13vw, 168px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.title canvas { display: block; }
+
+/* ---------- Project cards ---------- */
+.projects {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+.card {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  isolation: isolate;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: transform .5s var(--ease), border-color .4s, opacity .8s var(--ease);
+}
+.card.shown { opacity: 1; transform: none; }
+.card.shown:hover, .card.shown.active {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.card canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  z-index: -1;
+}
+.card .info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 20px 24px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+.card h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+
+@media (max-width: 720px) {
+  .projects { grid-template-columns: 1fr; }
+}
+@media (max-width: 400px) {
+  .hero, .projects { padding-left: 16px; padding-right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}
