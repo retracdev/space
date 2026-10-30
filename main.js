@@ -170,11 +170,11 @@ function titleLetterLayout() {
   const scale = parseFloat(canvas.style.width) / canvas.width;
   let x = canvas.fs * 0.05;
   const letters = [];
-  for (const [text] of parts) {
+  for (const [text, color] of parts) {
     for (let i = 0; i < text.length; i++) {
       const left = x + ctx.measureText(text.slice(0, i)).width;
       const right = x + ctx.measureText(text.slice(0, i + 1)).width;
-      letters.push({ char: text[i], left: left * scale, width: (right - left) * scale });
+      letters.push({ char: text[i], color, left: left * scale, width: (right - left) * scale });
     }
     x += ctx.measureText(text).width;
   }
@@ -223,40 +223,44 @@ function startTitleFall(origin) {
   }
   if (titleFall.active || !titleWave.ready) return;
   titleWave.strength = 0;
-  drawHeading(heroHeading);
   const rect = heroHeading.canvas.getBoundingClientRect();
   const dpr = heroHeading.canvas.width / parseFloat(heroHeading.canvas.style.width);
-  titleFall.letters = titleLetterLayout().map((letter, index) => {
-    const sprite = document.createElement("canvas");
-    // Include the leading inset in the first slice; adjacent slices preserve kerning.
-    const left = index === 0 ? 0 : letter.left;
-    const width = letter.width + letter.left - left;
-    const metrics = heroHeading.offCtx.measureText(letter.char);
-    const top = Math.max(0, Math.floor(heroHeading.canvas.height / 2 - (metrics.actualBoundingBoxAscent ?? heroHeading.canvas.height / 2)) - 1);
-    const bottom = Math.min(heroHeading.canvas.height, Math.ceil(heroHeading.canvas.height / 2 + (metrics.actualBoundingBoxDescent ?? heroHeading.canvas.height / 2)) + 1);
-    const height = bottom - top;
-    sprite.width = Math.ceil(width * dpr);
-    sprite.height = height;
-    sprite.getContext("2d").drawImage(heroHeading.canvas, left * dpr, top,
-      width * dpr, sprite.height, 0, 0, sprite.width, sprite.height);
-    return {
-      sprite, left, width, height: height / dpr,
-      x: rect.left + left + width / 2, y: rect.top + (top + height / 2) / dpr,
-      vx: (Math.random() - 0.5) * 420, vy: -100 - Math.random() * 160,
-      angle: 0, spin: (Math.random() - 0.5) * 9,
-      delay: Math.abs(index - origin) * 48,
-      restitution: 0.25 + Math.random() * 0.2,
-    };
-  });
+  const fontSize = heroHeading.canvas.fs / dpr;
   const scale = Math.min(window.devicePixelRatio || 1, 2);
   fallingCanvas.width = Math.round(window.innerWidth * scale);
   fallingCanvas.height = Math.round(window.innerHeight * scale);
   fallingCanvas.style.width = `${window.innerWidth}px`;
   fallingCanvas.style.height = `${window.innerHeight}px`;
   fallingCtx.setTransform(scale, 0, 0, scale, 0, 0);
+  fallingCtx.font = titleFont(fontSize, heroHeading.weight);
+  fallingCtx.textBaseline = "middle";
+  if ("letterSpacing" in fallingCtx) fallingCtx.letterSpacing = "0px";
+  titleFall.letters = titleLetterLayout().map((letter, index) => {
+    // Measure the complete font glyph, including overhangs and descenders.
+    // Never crop the pixelated heading: its offscreen raster can be lower-DPI.
+    const metrics = fallingCtx.measureText(letter.char);
+    const left = -(metrics.actualBoundingBoxLeft ?? 0);
+    const right = metrics.actualBoundingBoxRight ?? metrics.width;
+    const ascent = metrics.actualBoundingBoxAscent ?? fontSize * 0.5;
+    const descent = metrics.actualBoundingBoxDescent ?? fontSize * 0.3;
+    const centerX = (left + right) / 2;
+    const centerY = (descent - ascent) / 2;
+    return {
+      char: letter.char, color: letter.color, fontSize,
+      homeX: letter.left, homeY: rect.height / 2,
+      drawX: -centerX, drawY: -centerY,
+      width: right - left, height: ascent + descent,
+      x: rect.left + letter.left + centerX, y: rect.top + rect.height / 2 + centerY,
+      vx: (Math.random() - 0.5) * 420, vy: -100 - Math.random() * 160,
+      angle: 0, spin: (Math.random() - 0.5) * 9,
+      delay: Math.abs(index - origin) * 48,
+      restitution: 0.25 + Math.random() * 0.2,
+    };
+  });
   titleFall.active = true;
   titleFall.start = performance.now();
   fallingCanvas.hidden = false;
+  drawTitleFall(titleFall.start, 0);
 }
 
 function drawTitleFall(now, dt) {
@@ -265,25 +269,35 @@ function drawTitleFall(now, dt) {
   if (elapsed >= RETURN_AT + POP_MS) { finishTitleFall(); return; }
   const W = window.innerWidth, H = window.innerHeight;
   fallingCtx.clearRect(0, 0, W, H);
-  drawHeading(heroHeading);
   const { ctx, canvas } = heroHeading;
   const dpr = canvas.width / parseFloat(canvas.style.width);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.font = titleFont(canvas.fs / dpr, heroHeading.weight);
+  ctx.textBaseline = "middle";
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
   if (elapsed >= RETURN_AT) {
     // A quick pop at the current title position, even if the user has scrolled.
     const p = Math.min(1, (elapsed - RETURN_AT) / POP_MS);
     const scale = 1 + Math.sin(p * Math.PI) * 0.12;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
+    const centerX = canvas.width / dpr / 2, centerY = canvas.height / dpr / 2;
+    ctx.translate(centerX, centerY);
     ctx.scale(scale, scale);
     ctx.globalAlpha = p;
-    ctx.drawImage(heroHeading.off, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+    for (const letter of titleFall.letters) {
+      ctx.fillStyle = letter.color;
+      ctx.fillText(letter.char, letter.homeX - centerX, letter.homeY - centerY);
+    }
     ctx.restore();
     return;
   }
   for (const letter of titleFall.letters) {
-    if (elapsed < letter.delay) continue;
-    ctx.clearRect(letter.left * dpr, 0, letter.width * dpr, canvas.height);
+    if (elapsed < letter.delay) {
+      ctx.fillStyle = letter.color;
+      ctx.fillText(letter.char, letter.homeX, letter.homeY);
+      continue;
+    }
     if (elapsed >= DISAPPEAR_AT) continue;
     // Semi-implicit gravity, wall impacts and a damped, rotating floor bounce.
     letter.vy += 2400 * dt;
@@ -306,9 +320,11 @@ function drawTitleFall(now, dt) {
     fallingCtx.save();
     fallingCtx.translate(letter.x, letter.y);
     fallingCtx.rotate(letter.angle);
-    fallingCtx.drawImage(letter.sprite, -letter.width / 2, -letter.height / 2, letter.width, letter.height);
+    fallingCtx.fillStyle = letter.color;
+    fallingCtx.fillText(letter.char, letter.drawX, letter.drawY);
     fallingCtx.restore();
   }
+  ctx.restore();
 }
 
 motionPreference.addEventListener("change", () => {
