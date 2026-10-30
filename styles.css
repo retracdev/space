@@ -13,7 +13,25 @@ body {
   color: var(--fg);
   font-family: "Space Grotesk", system-ui, sans-serif;
   min-height: 100vh;
+  isolation: isolate;
 }
+
+/* Decorative layers never intercept the existing title and card controls. */
+#bgcanvas, .background-veil {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#bgcanvas { display: block; z-index: 0; }
+.background-veil {
+  z-index: 1;
+  background:
+    radial-gradient(115% 78% at 50% 0%, transparent 32%, rgba(5, 6, 10, .7) 100%),
+    linear-gradient(rgba(5, 6, 10, .78), rgba(5, 6, 10, .78));
+}
+.site-content { position: relative; z-index: 2; }
 
 .sr-only {
   position: absolute;
