@@ -348,7 +348,7 @@ const projects = [
   },
   {
     name: "Retrac's Rickroll",
-    video: "assets/retrac-rickroll-loop.mp4",
+    video: "assets/retrac-rickroll-loop.mp4#t=0.45",
     href: "https://surprise.retrac.space/",
   },
   {
