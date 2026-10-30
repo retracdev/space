@@ -93,6 +93,31 @@ body {
   line-height: 1.5;
 }
 
+/* ---------- Bio ---------- */
+.bio {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px clamp(56px, 8vw, 88px);
+}
+.bio-content { position: relative; max-width: 760px; }
+.bio h2 {
+  margin-bottom: 24px;
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.bio p { font-size: clamp(17px, 2vw, 20px); line-height: 1.7; }
+.bio p + p { margin-top: 20px; }
+/* Opacity preserves the real text's layout, selection and accessibility. */
+.bio-content.is-revealing .bio-copy { opacity: 0; }
+.bio-reveal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 /* ---------- Project cards ---------- */
 .projects {
   max-width: 1200px;
@@ -149,8 +174,10 @@ body {
   .projects { grid-template-columns: 1fr; }
 }
 @media (max-width: 400px) {
-  .hero, .projects { padding-left: 16px; padding-right: 16px; }
+  .hero, .bio, .projects { padding-left: 16px; padding-right: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .bio-content.is-revealing .bio-copy { opacity: 1; }
+  .bio-reveal { display: none; }
   .card { transition: none; }
 }
