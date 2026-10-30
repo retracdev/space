@@ -23,16 +23,30 @@
   </h1>
 </header>
 
-<main class="projects site-content" id="projects">
+<main class="site-content">
+  <section class="bio" aria-labelledby="bio-heading">
+    <div class="bio-content" id="bio-content">
+      <div class="bio-copy">
+        <h2 id="bio-heading">Bio</h2>
+        <p>Hi, I'm Carter Welch! Welcome to my little corner of the internet.</p>
+        <p>I'm a developer who loves building things, experimenting with new ideas, and bringing random projects to life. This is where I share what I've been working on, things I've created, and whatever else I find interesting.</p>
+        <p>Thanks for stopping by, and feel free to explore!</p>
+      </div>
+    </div>
+  </section>
+
+<section class="projects" id="projects" aria-label="Featured Projects">
   <h2 class="projects-heading">
     <span class="sr-only">Featured Projects</span>
     <canvas id="projects-title" aria-hidden="true"></canvas>
   </h2>
+</section>
 </main>
 
 <canvas id="falling-title" class="falling-title" aria-hidden="true" hidden></canvas>
 <div id="motion-notice" class="motion-notice" role="status" hidden>Unable to play that animation because you have reduce motion on.</div>
 <script src="background.js"></script>
+<script src="bio.js"></script>
 <script src="main.js"></script>
 </body>
 </html>
