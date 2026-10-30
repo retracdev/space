@@ -84,6 +84,71 @@ function playTitle(done) {
   requestAnimationFrame(tick);
 }
 
+/* ---------- Title hover: a small, cursor-following pixel wave ---------- */
+const heroHeading = headings[0];
+const titleWave = {
+  active: false, strength: 0, x: 0.5, y: 0.5, ready: false,
+  canvas: document.createElement("canvas"),
+};
+titleWave.ctx = titleWave.canvas.getContext("2d");
+
+function trackTitlePointer(event) {
+  if (reduceMotion || event.pointerType === "touch") return;
+  const rect = heroHeading.canvas.getBoundingClientRect();
+  titleWave.x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  titleWave.y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+  titleWave.active = true;
+}
+heroHeading.canvas.addEventListener("pointerenter", trackTitlePointer);
+heroHeading.canvas.addEventListener("pointermove", trackTitlePointer);
+for (const event of ["pointerleave", "pointercancel"]) {
+  heroHeading.canvas.addEventListener(event, () => { titleWave.active = false; });
+}
+window.addEventListener("blur", () => { titleWave.active = false; });
+
+function drawTitleWave(now, dt) {
+  if (reduceMotion || !titleWave.ready) return;
+  const target = titleWave.active ? 1 : 0;
+  if (!target && titleWave.strength === 0) return;
+  titleWave.strength += (target - titleWave.strength) * (1 - Math.exp(-dt * 14));
+  if (!target && titleWave.strength < 0.005) titleWave.strength = 0;
+
+  // Restore a pristine heading every frame so moving the cursor leaves no trail.
+  drawHeading(heroHeading);
+  if (!titleWave.strength) return;
+  const { canvas, ctx, off } = heroHeading;
+  const W = canvas.width, H = canvas.height, fs = canvas.fs;
+  const dpr = W / parseFloat(canvas.style.width);
+  const cell = Math.max(2, Math.round(3 * dpr));
+  const pixel = titleWave.canvas;
+  const lw = Math.ceil(W / cell), lh = Math.ceil(H / cell);
+  if (pixel.width !== lw || pixel.height !== lh) { pixel.width = lw; pixel.height = lh; }
+  titleWave.ctx.clearRect(0, 0, lw, lh);
+  titleWave.ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, lw, lh);
+
+  const center = titleWave.x * W;
+  const radius = fs * 0.72; // about two to three letters, independent of screen size
+  const strip = W / lw;
+  const start = Math.max(0, Math.floor((center - radius) / strip));
+  const end = Math.min(lw, Math.ceil((center + radius) / strip));
+  // A stepped clock and whole-pixel offsets give this a digital, wavy cadence.
+  const time = Math.floor(now / 55) * 0.055;
+  for (let i = start; i < end; i++) {
+    const x = i * strip;
+    const distance = Math.min(1, Math.abs(x + strip / 2 - center) / radius);
+    const envelope = (1 - distance * distance) ** 2;
+    const mix = envelope * titleWave.strength;
+    const wave = Math.sin((x - center) / fs * 12 - time * 8 + titleWave.y * 3);
+    const offset = Math.round(wave * fs * 0.055 * mix / cell) * cell;
+    ctx.clearRect(x, 0, strip, H);
+    ctx.globalAlpha = 1 - mix;
+    ctx.drawImage(off, x * off.width / W, 0, strip * off.width / W, off.height, x, 0, strip, H);
+    ctx.globalAlpha = mix;
+    ctx.drawImage(pixel, i, 0, 1, lh, x, offset, strip, H);
+  }
+  ctx.globalAlpha = 1;
+}
+
 /* ---------- Projects ---------- */
 const projects = [
   {
@@ -246,6 +311,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  drawTitleWave(now, dt);
   for (const c of cards) {
     c.speed += ((c.hover ? 1 : IDLE_SPEED) - c.speed) * Math.min(1, dt * 4);
     if (c.video) c.video.playbackRate = c.speed;
@@ -308,6 +374,7 @@ Promise.race([fontReady, new Promise((r) => setTimeout(r, 1500))]).then(() => {
   resizeCards();
   requestAnimationFrame(frame);
   playTitle(() => {
+    titleWave.ready = true;
     container.querySelectorAll(".card").forEach((el, i) => setTimeout(() => el.classList.add("shown"), reduceMotion ? 0 : i * 140));
   });
 });

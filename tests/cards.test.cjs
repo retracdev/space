@@ -6,7 +6,7 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "../main.js"), "utf8");
 
-function loadCards(reduceMotion = false) {
+function loadCards(reduceMotion = false, dpr = 1) {
   class Element {
     constructor(tag) {
       this.tagName = tag;
@@ -59,7 +59,7 @@ function loadCards(reduceMotion = false) {
       getElementById: (id) => ({ projects: container, title, "projects-title": projectsTitle })[id],
       fonts: { load: () => new Promise(() => {}) },
     },
-    window: { devicePixelRatio: 1, addEventListener() {} },
+    window: { devicePixelRatio: dpr, addEventListener() {} },
     matchMedia: (query) => ({ matches: query.includes("reduced-motion") && reduceMotion }),
     performance: { now: () => 0 },
     getComputedStyle: (element) => element,
@@ -103,6 +103,69 @@ test("reduced motion renders both headings sharp without scheduling animation", 
   assert.equal(frames.length, 0);
   for (const canvas of [title, projectsTitle]) {
     assert.equal(canvas.context.draws.at(-1)[3], canvas.width);
+  }
+});
+
+test("title hover stays local, follows the pointer, and restores sharp text on exit", () => {
+  const { context, title, projectsTitle, frames } = loadCards();
+  vm.runInContext("sizeTitle(); playTitle(() => { titleWave.ready = true; })", context);
+  frames.shift()(1045);
+  const projectDraws = projectsTitle.context.draws.length;
+  title.listeners.pointerenter({ pointerType: "mouse", clientX: 288, clientY: 100 });
+  title.context.draws.length = 0;
+  vm.runInContext("drawTitleWave(1100, 0.05)", context);
+  const patch = title.context.draws.slice(1);
+  assert.ok(patch.length > 2, "hover draws pixel strips after restoring the base");
+  const left = Math.min(...patch.map((draw) => draw[5]));
+  const right = Math.max(...patch.map((draw) => draw[5] + draw[7]));
+  assert.ok(right - left <= title.fs * 1.44 + 6, "only a few letters are affected");
+  assert.ok(Math.abs((left + right) / 2 - title.width / 2) < 6);
+  assert.ok(patch.some((draw) => draw[6] !== 0), "strips move vertically in a wave");
+  title.listeners.pointermove({ pointerType: "mouse", clientX: 440, clientY: 100 });
+  title.context.draws.length = 0;
+  vm.runInContext("drawTitleWave(1200, 0.05)", context);
+  assert.ok(Math.min(...title.context.draws.slice(1).map((draw) => draw[5])) > left);
+  assert.equal(projectsTitle.context.draws.length, projectDraws, "project heading is untouched");
+  title.listeners.pointerleave();
+  for (let now = 1250; now <= 2000; now += 50) vm.runInContext(`drawTitleWave(${now}, 0.05)`, context);
+  assert.equal(vm.runInContext("titleWave.strength", context), 0);
+  assert.equal(title.context.draws.at(-1)[0], vm.runInContext("heroHeading.off", context));
+  const idleDraws = title.context.draws.length;
+  vm.runInContext("drawTitleWave(2050, 0.05)", context);
+  assert.equal(title.context.draws.length, idleDraws, "idle title does no rendering work");
+});
+
+test("title hover waits for the entrance and ignores touch and reduced motion", () => {
+  for (const reduced of [false, true]) {
+    const { context, title } = loadCards(reduced);
+    vm.runInContext("sizeTitle()", context);
+    title.listeners.pointerenter({ pointerType: "mouse", clientX: 200, clientY: 80 });
+    vm.runInContext("drawTitleWave(100, 0.05)", context);
+    assert.equal(title.context.draws.length, 0, "entrance owns the title until finished");
+    title.listeners.pointercancel();
+    title.listeners.pointerenter({ pointerType: "touch", clientX: 200, clientY: 80 });
+    assert.equal(vm.runInContext("titleWave.active", context), false);
+    vm.runInContext("titleWave.ready = true", context);
+    title.listeners.pointerenter({ pointerType: "mouse", clientX: 200, clientY: 80 });
+    vm.runInContext("drawTitleWave(1100, 0.05)", context);
+    assert.equal(title.context.draws.length > 0, !reduced);
+  }
+});
+
+test("title wave uses valid source strips on high-DPI screens and after resizing", () => {
+  const { context, title } = loadCards(false, 2);
+  vm.runInContext("sizeTitle(); titlePx = 1; titleAlpha = 1; titleWave.ready = true", context);
+  title.listeners.pointerenter({ pointerType: "mouse", clientX: 570, clientY: 80 });
+  for (const fontSize of ["168px", "56px"]) {
+    title.parentElement.fontSize = fontSize;
+    vm.runInContext("sizeTitle()", context);
+    title.context.draws.length = 0;
+    vm.runInContext("drawTitleWave(1200, 0.05)", context);
+    for (const [source, sx, , sw, , dx, , dw] of title.context.draws.slice(1)) {
+      assert.ok(sx >= 0 && sx + sw <= source.width + 0.001, "source stays within its raster");
+      assert.ok(dx >= 0 && dx + dw <= title.width + 0.001);
+    }
+    assert.equal(title.context.globalAlpha, 1);
   }
 });
 
