@@ -207,6 +207,37 @@ test("every title character has a button and starts a randomized outward chain",
   assert.notEqual(vm.runInContext("titleFall.letters[5].spin", context), letters[5].spin, "replays get new physics");
 });
 
+test("falling letters render complete font glyphs at CSS size on normal and high-DPI screens", () => {
+  for (const dpr of [1, 2]) {
+    for (const fontSize of [56, 168]) {
+      const { context, title, fallingCanvas } = loadCards(false, dpr);
+      title.parentElement.fontSize = `${fontSize}px`;
+      vm.runInContext("sizeTitle(); titleWave.ready = true", context);
+      // Include a left overhang and a long descender, outside advance-only crops.
+      fallingCanvas.context.measureText = function (char) {
+        const size = parseFloat(this.font.split(" ")[1]);
+        return { width: size * 0.6, actualBoundingBoxLeft: size * 0.05,
+          actualBoundingBoxRight: size * 0.65, actualBoundingBoxAscent: size * 0.4,
+          actualBoundingBoxDescent: size * (char === "p" ? 0.25 : 0.05) };
+      };
+      vm.runInContext("startTitleFall(0); drawTitleFall(600, 0.016)", context);
+      const letters = vm.runInContext("titleFall.letters", context);
+      assert.equal(fallingCanvas.context.font, `700 ${fontSize}px "Space Grotesk", system-ui, sans-serif`);
+      assert.equal(fallingCanvas.context.letterSpacing, "0px");
+      assert.equal(fallingCanvas.context.draws.length, 0, "falling glyphs never sample a cropped bitmap");
+      assert.equal(fallingCanvas.context.text.slice(-letters.length).map(([char]) => char).join(""), "retrac.space");
+      assert.ok(fallingCanvas.context.text.every((draw) => draw.length === 3), "glyphs are drawn without a limiting maxWidth");
+      const p = letters.find((letter) => letter.char === "p");
+      assert.ok(Math.abs(p.width - fontSize * 0.7) < 0.001, "collision bounds include both overhangs");
+      assert.ok(Math.abs(p.height - fontSize * 0.65) < 0.001, "descender is measured in CSS pixels regardless of DPR");
+      assert.ok(Math.abs(p.drawY - fontSize * 0.075) < 0.001);
+      assert.equal(letters[0].color, "#f3f0ff");
+      assert.equal(p.color, "#8b86a3");
+      assert.ok(title.context.text.some(([char]) => char === "p"), "letters awaiting the chain also use whole glyphs");
+    }
+  }
+});
+
 test("letters bounce on the viewport floor, fall through, disappear, and return after half a second", () => {
   const { context, fallingCanvas, title } = loadCards();
   vm.runInContext("sizeTitle(); titlePx = 1; titleAlpha = 1; titleWave.ready = true; startTitleFall(0)", context);
@@ -222,12 +253,12 @@ test("letters bounce on the viewport floor, fall through, disappear, and return 
   const floorY = letters[0].y;
   for (let now = 2500; now < 2800; now += 16) vm.runInContext(`drawTitleFall(${now}, 0.016)`, context);
   assert.ok(letters[0].y > floorY, "floor releases at 2.5 seconds");
-  const drawCount = fallingCanvas.context.draws.length;
+  const drawCount = fallingCanvas.context.text.length;
   vm.runInContext("drawTitleFall(2800, 0.016); drawTitleFall(3299, 0.016)", context);
-  assert.equal(fallingCanvas.context.draws.length, drawCount, "all letters stay gone during the half-second pause");
-  const titleDrawCount = title.context.draws.length;
+  assert.equal(fallingCanvas.context.text.length, drawCount, "all letters stay gone during the half-second pause");
+  const titleDrawCount = title.context.text.length;
   vm.runInContext("drawTitleFall(3390, 0.016)", context);
-  assert.ok(title.context.draws.length > titleDrawCount + 1, "title pops back into its normal canvas");
+  assert.equal(title.context.text.length, titleDrawCount + "retrac.space".length, "complete glyphs pop back into the title");
   vm.runInContext("drawTitleFall(3480, 0.016)", context);
   assert.equal(vm.runInContext("titleFall.active", context), false);
   assert.equal(fallingCanvas.hidden, true);
