@@ -411,7 +411,7 @@ test("the full-card referral link and reduced-motion playback are preserved", ()
   assert.equal(rickroll.el.target, "_blank");
   assert.equal(rickroll.el.rel, "noopener noreferrer");
   assert.ok(rickroll.el.html.includes("<h2>Retrac's Rickroll</h2>"));
-  assert.ok(rickroll.el.html.includes('src="assets/retrac-rickroll-loop.mp4"'));
+  assert.ok(rickroll.el.html.includes('src="assets/retrac-rickroll-loop.mp4#t=0.45"'));
   assert.equal(rickroll.video.playCalls, 0);
   assert.ok(!rickroll.el.html.includes("autoplay"));
   const membrain = cards[2];
