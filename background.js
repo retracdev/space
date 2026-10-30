@@ -20,7 +20,8 @@
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
   // Each expression produces a field for the shared color palette. These are
-  // original formulas: flowing ribbons, ripples, folded waves and orbiting lights.
+  // original formulas: flowing ribbons, ripples and folded waves. Keep diffuse
+  // light fields out of this pool: they can look almost blank behind the veil.
   const SHADERS = [
     `float field(vec2 p, float t) {
       p.x += .6*sin(p.y*(1.5+iTweakA.x*.4)+t);
@@ -36,16 +37,6 @@
       float a = sin(p.x*2.+t+iTweakA.x)*cos(p.y*2.5-t*.6);
       float b = sin((p.x+p.y)*3.+a*3.+iTweakA.y);
       return .5+.5*sin(b*2.+a*2.+t*.4);
-    }`,
-    `float field(vec2 p, float t) {
-      float light = 0.;
-      for (int i=0; i<5; i++) {
-        float n = float(i);
-        vec2 center = vec2(cos(t*(.3+n*.07)+n*2.), sin(t*.4+n*2.7));
-        center *= .7+iTweakB.y*.2;
-        light += .12/(.12+dot(p-center, p-center));
-      }
-      return light*.45;
     }`,
   ];
   // All random state is chosen once. Restoring a context retains the same look.
@@ -75,7 +66,10 @@
       float f = field(p, iTime);
       vec3 phase = vec3(.05, .35, .65)+iTweakB.z*.25;
       vec3 color = .5+.5*cos(6.28318*(f*(.6+iTweakB.w*.2)+phase));
-      outColor = vec4(color*(.3+.7*clamp(f, 0., 1.)), 1.);
+      // Keep the palette vivid across random phases and lift dim field values.
+      // The maximum stays at 1, so the veil's text-contrast bound is unchanged.
+      color /= max(max(color.r, color.g), max(color.b, .001));
+      outColor = vec4(color*(.7+.3*clamp(f, 0., 1.)), 1.);
     }`;
 
   let program, uniforms;

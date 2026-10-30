@@ -1,11 +1,14 @@
 # retrac.space
 A little space for all the cool things I've built.
 
-The decorative WebGL2 background selects one of four original shaders and
+The decorative WebGL2 background selects one of three original shaders and
 randomizes eight parameters, hue, and starting time on each page load. There
 are no reshuffle controls. It pauses in hidden tabs, shows a still frame for
 reduced motion (including live preference changes), and retains the solid CSS
 background when WebGL2 is unavailable. Context restoration keeps the same look.
+The selection pool excludes diffuse light fields that can look almost blank.
+Palette peaks are normalized, and the field intensity ranges from 0.7 to 1.0
+so random parameters do not dim the remaining ribbon, ripple, and wave styles.
 
 Rendering settings live in `background.js`: 30 FPS, 2x render scale, an eight
 million pixel cap, and 0.12 shader seconds per second. The dark overlay in
