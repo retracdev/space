@@ -26,6 +26,11 @@ Run the regression checks with `node --test tests/*.test.cjs`. Background tests
 exercise lifecycle and scheduling with a mocked WebGL context; they do not
 validate GPU compilation, visual appearance, or mobile performance.
 
+Append `?reduce_motion=true` to the page URL (or `&reduce_motion=true` after
+other query parameters) to test reduced-motion behavior without changing your
+system settings. Reload without it to use the system preference again. Other
+values, including `false`, do not override a system preference for reduced motion.
+
 
 > [!IMPORTANT]
 > **Source Available — MIT Licensed**

@@ -1,4 +1,4 @@
-const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+const motionPreference = motionSettings;
 let reduceMotion = motionPreference.matches;
 
 /* ---------- Headings: resolve from chunky pixels to sharp ---------- */

@@ -17,7 +17,7 @@
   const SPEED = .12;
   const BRIGHTNESS = 1;
   const SATURATION = 1;
-  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const motion = motionSettings;
 
   // Each expression produces a field for the shared color palette. These are
   // original formulas: flowing ribbons, ripples and folded waves. Keep diffuse

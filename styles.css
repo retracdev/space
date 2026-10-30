@@ -181,3 +181,8 @@ body {
   .bio-reveal { display: none; }
   .card { transition: none; }
 }
+
+/* Mirror the system preference when testing with ?reduce_motion=true. */
+:root[data-reduce-motion="true"] .bio-content.is-revealing .bio-copy { opacity: 1; }
+:root[data-reduce-motion="true"] .bio-reveal { display: none; }
+:root[data-reduce-motion="true"] .card { transition: none; }
