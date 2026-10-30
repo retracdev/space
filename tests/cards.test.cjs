@@ -23,7 +23,7 @@ function loadCards(reduceMotion = false, dpr = 1) {
         drawImage(...args) { this.draws.push(args); },
         createLinearGradient() { return { addColorStop() {} }; },
       };
-      for (const name of ["clearRect", "fillRect", "beginPath", "arc", "fill", "stroke", "moveTo", "lineTo", "save", "rect", "clip", "restore"]) {
+      for (const name of ["clearRect", "fillRect", "beginPath", "arc", "fill", "stroke", "moveTo", "lineTo", "save", "rect", "clip", "restore", "setTransform", "translate", "rotate", "scale"]) {
         this.context[name] = () => {};
       }
       if (tag === "video") {
@@ -45,6 +45,7 @@ function loadCards(reduceMotion = false, dpr = 1) {
     appendChild(child) { this.children.push(child); }
     querySelector(tag) { return this.children.find((child) => child.tagName === tag) || null; }
     addEventListener(name, callback) { this.listeners[name] = callback; }
+    setAttribute(name, value) { this[name] = value; }
     getBoundingClientRect() { return { left: 0, top: 0, width: 576, height: 324 }; }
   }
   const container = new Element("main");
@@ -53,22 +54,35 @@ function loadCards(reduceMotion = false, dpr = 1) {
   const projectsTitle = new Element("canvas");
   projectsTitle.parentElement = { fontSize: "32px", fontWeight: "600", letterSpacing: "-0.64px" };
   const frames = [];
+  const letterTargets = new Element("span");
+  const fallingCanvas = new Element("canvas");
+  fallingCanvas.hidden = true;
+  const motionNotice = new Element("div");
+  motionNotice.hidden = true;
+  const preference = { matches: reduceMotion, addEventListener(name, callback) { this[name] = callback; } };
+  const windowListeners = {};
+  const timers = new Map();
+  let timerId = 0;
   const context = vm.createContext({
     document: {
       createElement: (tag) => new Element(tag),
-      getElementById: (id) => ({ projects: container, title, "projects-title": projectsTitle })[id],
+      getElementById: (id) => ({ projects: container, title, "projects-title": projectsTitle,
+        "title-letters": letterTargets, "falling-title": fallingCanvas, "motion-notice": motionNotice })[id],
       fonts: { load: () => new Promise(() => {}) },
     },
-    window: { devicePixelRatio: dpr, addEventListener() {} },
-    matchMedia: (query) => ({ matches: query.includes("reduced-motion") && reduceMotion }),
+    window: { devicePixelRatio: dpr, innerWidth: 1200, innerHeight: 800,
+      addEventListener(name, callback) { windowListeners[name] = callback; } },
+    matchMedia: (query) => query.includes("reduced-motion") ? preference : { matches: false },
     performance: { now: () => 0 },
     getComputedStyle: (element) => element,
     requestAnimationFrame(callback) { frames.push(callback); },
-    setTimeout() {},
+    setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
+    clearTimeout(id) { timers.delete(id); },
   });
   vm.runInContext(source, context);
   vm.runInContext("resizeCards()", context);
-  return { context, cards: vm.runInContext("cards", context), container, title, projectsTitle, frames };
+  return { context, cards: vm.runInContext("cards", context), container, title, projectsTitle, frames,
+    letterTargets, fallingCanvas, motionNotice, preference, windowListeners, timers };
 }
 
 test("both headings resolve together and retain their typography after resizing", () => {
@@ -167,6 +181,105 @@ test("title wave uses valid source strips on high-DPI screens and after resizing
     }
     assert.equal(title.context.globalAlpha, 1);
   }
+});
+
+test("every title character has a button and starts a randomized outward chain", () => {
+  const { context, letterTargets, fallingCanvas } = loadCards(false, 2);
+  vm.runInContext("sizeTitle(); titlePx = 1; titleAlpha = 1; titleWave.ready = true; drawTitle()", context);
+  assert.equal(letterTargets.children.length, "retrac.space".length);
+  for (const [index, button] of letterTargets.children.entries()) {
+    assert.equal(button.type, "button", "native buttons support keyboard and touch activation");
+    assert.equal(button["aria-label"], `Animate title: ${"retrac.space"[index]}`);
+    assert.ok(parseFloat(button.style.width) > 0);
+  }
+  letterTargets.children[5].listeners.click();
+  const letters = vm.runInContext("titleFall.letters", context);
+  assert.equal(fallingCanvas.hidden, false);
+  assert.equal(fallingCanvas.width, 2400, "overlay matches the viewport at capped DPR");
+  assert.equal(letters[5].delay, 0);
+  assert.equal(letters[4].delay, 48);
+  assert.equal(letters[6].delay, 48);
+  assert.ok(new Set(letters.map((letter) => letter.spin)).size > 1);
+  letterTargets.children[1].listeners.click();
+  assert.equal(vm.runInContext("titleFall.letters", context), letters, "repeated clicks cannot stack animations");
+  vm.runInContext("finishTitleFall()", context);
+  letterTargets.children[5].listeners.click();
+  assert.notEqual(vm.runInContext("titleFall.letters[5].spin", context), letters[5].spin, "replays get new physics");
+});
+
+test("letters bounce on the viewport floor, fall through, disappear, and return after half a second", () => {
+  const { context, fallingCanvas, title } = loadCards();
+  vm.runInContext("sizeTitle(); titlePx = 1; titleAlpha = 1; titleWave.ready = true; startTitleFall(0)", context);
+  const letters = vm.runInContext("titleFall.letters", context);
+  for (let now = 0; now < 2500; now += 16) {
+    vm.runInContext(`drawTitleFall(${now}, 0.016)`, context);
+    for (const letter of letters) {
+      if (now < letter.delay) continue;
+      const radius = Math.abs(Math.sin(letter.angle)) * letter.width / 2 + Math.abs(Math.cos(letter.angle)) * letter.height / 2;
+      assert.ok(letter.y + radius <= 800.001, "floor holds letters at the viewport bottom");
+    }
+  }
+  const floorY = letters[0].y;
+  for (let now = 2500; now < 2800; now += 16) vm.runInContext(`drawTitleFall(${now}, 0.016)`, context);
+  assert.ok(letters[0].y > floorY, "floor releases at 2.5 seconds");
+  const drawCount = fallingCanvas.context.draws.length;
+  vm.runInContext("drawTitleFall(2800, 0.016); drawTitleFall(3299, 0.016)", context);
+  assert.equal(fallingCanvas.context.draws.length, drawCount, "all letters stay gone during the half-second pause");
+  const titleDrawCount = title.context.draws.length;
+  vm.runInContext("drawTitleFall(3390, 0.016)", context);
+  assert.ok(title.context.draws.length > titleDrawCount + 1, "title pops back into its normal canvas");
+  vm.runInContext("drawTitleFall(3480, 0.016)", context);
+  assert.equal(vm.runInContext("titleFall.active", context), false);
+  assert.equal(fallingCanvas.hidden, true);
+  assert.equal(title.context.draws.at(-1)[0], vm.runInContext("heroHeading.off", context));
+});
+
+test("reduced motion blocks activation, shows the notice, and resets its dismissal timer", () => {
+  const { context, letterTargets, motionNotice, fallingCanvas, timers } = loadCards(true);
+  vm.runInContext("sizeTitle(); titleWave.ready = true", context);
+  const initialTimerCount = timers.size;
+  letterTargets.children[0].listeners.click();
+  assert.equal(motionNotice.hidden, false);
+  assert.equal(fallingCanvas.hidden, true);
+  assert.equal(vm.runInContext("titleFall.active", context), false);
+  assert.equal(timers.size, initialTimerCount + 1);
+  const firstTimer = vm.runInContext("titleFall.noticeTimer", context);
+  letterTargets.children[2].listeners.click();
+  assert.equal(timers.size, initialTimerCount + 1);
+  assert.equal(timers.has(firstTimer), false);
+  timers.get(vm.runInContext("titleFall.noticeTimer", context))();
+  assert.equal(motionNotice.hidden, true);
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  assert.ok(html.includes('role="status" hidden>Unable to play that animation because you have reduce motion on.</div>'));
+});
+
+test("live reduced-motion changes and resize restore the title safely", () => {
+  const { context, preference, windowListeners, fallingCanvas } = loadCards();
+  vm.runInContext("sizeTitle(); titleWave.ready = true; startTitleFall(0)", context);
+  preference.matches = true;
+  preference.change();
+  assert.equal(vm.runInContext("titleFall.active", context), false);
+  assert.equal(fallingCanvas.hidden, true);
+  preference.matches = false;
+  preference.change();
+  vm.runInContext("startTitleFall(3)", context);
+  assert.equal(fallingCanvas.hidden, false);
+  windowListeners.resize();
+  assert.equal(vm.runInContext("titleFall.active", context), false);
+  assert.equal(fallingCanvas.hidden, true);
+});
+
+test("transparent letter controls preserve hover and animation owns the title during a fall", () => {
+  const { context, letterTargets, title } = loadCards();
+  vm.runInContext("sizeTitle(); titleWave.ready = true", context);
+  letterTargets.listeners.pointerenter({ pointerType: "mouse", clientX: 240, clientY: 100 });
+  assert.equal(vm.runInContext("titleWave.active", context), true);
+  letterTargets.listeners.pointerleave();
+  assert.equal(vm.runInContext("titleWave.active", context), false);
+  letterTargets.children[3].listeners.click();
+  const drawCount = title.context.draws.length;
+  vm.runInContext("drawTitleWave(100, 0.05)", context);
+  assert.equal(title.context.draws.length, drawCount, "hover cannot redraw fallen letters");
 });
 
 ["Retrac Labs", "Retrac's Rickroll", "Membrain"].forEach((name, index) => {
