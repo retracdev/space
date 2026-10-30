@@ -3,8 +3,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const source = fs.readFileSync(require("node:path").join(__dirname, "../bio.js"), "utf8");
+const motionSource = fs.readFileSync(require("node:path").join(__dirname, "../motion.js"), "utf8");
 
-async function loadBio({ reduced = false, canvasAvailable = true, fontsFail = false } = {}) {
+async function loadBio({ reduced = false, search = '', canvasAvailable = true, fontsFail = false } = {}) {
   function events(target = {}) {
     target.listeners = {};
     target.addEventListener = (name, callback) => { target.listeners[name] = callback; };
@@ -51,7 +52,10 @@ async function loadBio({ reduced = false, canvasAvailable = true, fontsFail = fa
       };
     },
   });
-  vm.runInNewContext(source, {
+  window.location = { search };
+  document.documentElement = { setAttribute() {} };
+  vm.runInNewContext(motionSource + '\n' + source, {
+    URLSearchParams,
     document, window, matchMedia: () => motion,
     getComputedStyle: () => ({ fontWeight: "400", fontSize: "20px", fontFamily: "sans-serif", color: "white", letterSpacing: "0px" }),
     performance: { now: () => 0 },
@@ -93,7 +97,7 @@ test("bio raster follows wrapped DOM lines and hands back to real text after the
 });
 
 test("reduced motion, unavailable canvas and failed fonts leave readable HTML", async () => {
-  for (const options of [{ reduced: true }, { canvasAvailable: false }, { fontsFail: true }]) {
+  for (const options of [{ reduced: true }, { search: '?reduce_motion=true' }, { canvasAvailable: false }, { fontsFail: true }]) {
     assertRestored(await loadBio(options));
   }
 });

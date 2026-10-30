@@ -5,8 +5,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../background.js'), 'utf8');
+const motionSource = fs.readFileSync(path.join(__dirname, '../motion.js'), 'utf8');
 
-function load({ reduced = false, supported = true, compileOK = true, random = .25 } = {}) {
+function load({ reduced = false, search = '', supported = true, compileOK = true, random = .25 } = {}) {
   const listeners = {};
   const frames = new Map();
   const calls = { draws: 0, shaders: [], times: [], tweaks: [], deleted: 0, random: 0 };
@@ -30,6 +31,7 @@ function load({ reduced = false, supported = true, compileOK = true, random = .2
   const document = { hidden: false, getElementById: () => canvas, addEventListener: on };
   let id = 0;
   const context = vm.createContext({
+    window: { location: { search } }, URLSearchParams,
     document, matchMedia: () => motion, addEventListener: on,
     innerWidth: 1200, innerHeight: 800, performance: { now: () => 0 },
     console: { warn() {} },
@@ -37,6 +39,8 @@ function load({ reduced = false, supported = true, compileOK = true, random = .2
     requestAnimationFrame(callback) { frames.set(++id, callback); return id; },
     cancelAnimationFrame: id => frames.delete(id),
   });
+  document.documentElement = { setAttribute() {} };
+  vm.runInContext(motionSource, context);
   vm.runInContext(source, context);
   function tick(now) {
     const [id, callback] = frames.entries().next().value;
@@ -89,6 +93,19 @@ test('reduced motion draws a still that resizes and responds to preference chang
   state.motion.matches = true;
   state.listeners.change();
   assert.equal(state.frames.size, 0);
+});
+
+test('URL override keeps the background still through system changes and resize', () => {
+  const state = load({ search: '?reduce_motion=true' });
+  assert.equal(state.calls.draws, 1);
+  assert.equal(state.frames.size, 0);
+  state.motion.matches = true;
+  state.listeners.change();
+  state.motion.matches = false;
+  state.listeners.change();
+  state.listeners.resize();
+  assert.equal(state.frames.size, 0);
+  assert.ok(state.calls.times.every(time => time === state.calls.times[0]));
 });
 
 test('visibility and page cache lifecycle pause and resume exactly one loop', () => {

@@ -1,6 +1,6 @@
 (() => {
   const content = document.getElementById("bio-content");
-  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  const motion = motionSettings;
   if (!content || motion.matches) return;
 
   const steps = [18, 14, 10, 7, 5, 3, 2, 1];

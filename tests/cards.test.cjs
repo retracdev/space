@@ -5,8 +5,9 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "../main.js"), "utf8");
+const motionSource = fs.readFileSync(path.join(__dirname, "../motion.js"), "utf8");
 
-function loadCards(reduceMotion = false, dpr = 1) {
+function loadCards(reduceMotion = false, dpr = 1, search = '') {
   class Element {
     constructor(tag) {
       this.tagName = tag;
@@ -64,13 +65,15 @@ function loadCards(reduceMotion = false, dpr = 1) {
   const timers = new Map();
   let timerId = 0;
   const context = vm.createContext({
+    URLSearchParams,
     document: {
+      documentElement: { setAttribute() {} },
       createElement: (tag) => new Element(tag),
       getElementById: (id) => ({ projects: container, title, "projects-title": projectsTitle,
         "title-letters": letterTargets, "falling-title": fallingCanvas, "motion-notice": motionNotice })[id],
       fonts: { load: () => new Promise(() => {}) },
     },
-    window: { devicePixelRatio: dpr, innerWidth: 1200, innerHeight: 800,
+    window: { location: { search }, devicePixelRatio: dpr, innerWidth: 1200, innerHeight: 800,
       addEventListener(name, callback) { windowListeners[name] = callback; } },
     matchMedia: (query) => query.includes("reduced-motion") ? preference : { matches: false },
     performance: { now: () => 0 },
@@ -79,6 +82,7 @@ function loadCards(reduceMotion = false, dpr = 1) {
     setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
     clearTimeout(id) { timers.delete(id); },
   });
+  vm.runInContext(motionSource, context);
   vm.runInContext(source, context);
   vm.runInContext("resizeCards()", context);
   return { context, cards: vm.runInContext("cards", context), container, title, projectsTitle, frames,
@@ -377,6 +381,19 @@ test("video loading and aspect ratios are safe for canvas rendering", () => {
   video.videoHeight = 1920;
   card.draw(draw, 100, 100);
   assert.deepEqual(draw.args, [video, 0, 420, 1080, 1080, 0, 0, 100, 100]);
+});
+
+test("URL override resolves headings, skips video autoplay, and blocks title animation", () => {
+  const { context, cards, preference, motionNotice, fallingCanvas } = loadCards(false, 1, '?reduce_motion=true');
+  assert.ok(cards.every(card => card.video.playCalls === 0 && !card.el.html.includes('autoplay')));
+  assert.equal(vm.runInContext('titlePx', context), 1);
+  assert.equal(vm.runInContext('titleAlpha', context), 1);
+  preference.matches = false;
+  preference.change();
+  vm.runInContext('sizeTitle(); titleWave.ready = true; startTitleFall(0)', context);
+  assert.equal(motionNotice.hidden, false);
+  assert.equal(fallingCanvas.hidden, true);
+  assert.equal(vm.runInContext('reduceMotion', context), true);
 });
 
 test("the full-card referral link and reduced-motion playback are preserved", () => {
