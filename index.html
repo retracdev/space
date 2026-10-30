@@ -12,8 +12,10 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<canvas id="bgcanvas" aria-hidden="true"></canvas>
+<div class="background-veil" aria-hidden="true"></div>
 
-<header class="hero">
+<header class="hero site-content">
   <h1 class="title">
     <span class="sr-only">retrac.space</span>
     <canvas id="title" aria-hidden="true"></canvas>
@@ -21,7 +23,7 @@
   </h1>
 </header>
 
-<main class="projects" id="projects">
+<main class="projects site-content" id="projects">
   <h2 class="projects-heading">
     <span class="sr-only">Featured Projects</span>
     <canvas id="projects-title" aria-hidden="true"></canvas>
@@ -30,6 +32,7 @@
 
 <canvas id="falling-title" class="falling-title" aria-hidden="true" hidden></canvas>
 <div id="motion-notice" class="motion-notice" role="status" hidden>Unable to play that animation because you have reduce motion on.</div>
+<script src="background.js"></script>
 <script src="main.js"></script>
 </body>
 </html>
