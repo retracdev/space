@@ -32,6 +32,7 @@ body {
   justify-content: center;
 }
 .title {
+  position: relative;
   /* font-size drives the canvas text size (read in main.js) */
   font-size: clamp(56px, 13vw, 168px);
   font-weight: 700;
@@ -39,6 +40,40 @@ body {
   line-height: 1;
 }
 .title canvas, .projects-heading canvas { display: block; }
+.title-letters { position: absolute; inset: 0; }
+.title-letter {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+.title-letter:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+.falling-title {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+.motion-notice {
+  position: fixed;
+  top: max(20px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+  z-index: 101;
+  width: min(360px, calc(100vw - 40px));
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #171322;
+  color: var(--fg);
+  box-shadow: 0 12px 40px #0008;
+  font-size: 14px;
+  line-height: 1.5;
+}
 
 /* ---------- Project cards ---------- */
 .projects {

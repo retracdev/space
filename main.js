@@ -1,4 +1,5 @@
-const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+let reduceMotion = motionPreference.matches;
 
 /* ---------- Headings: resolve from chunky pixels to sharp ---------- */
 const TITLE_STEPS = [56, 40, 28, 20, 14, 10, 7, 5, 3, 2, 1]; // pixel sizes, coarse -> sharp
@@ -65,7 +66,7 @@ function drawHeading(heading) {
   titleCtx.globalAlpha = 1;
 }
 
-function sizeTitle() { headings.forEach(sizeHeading); }
+function sizeTitle() { headings.forEach(sizeHeading); sizeTitleLetters(); }
 function drawTitle() { headings.forEach(drawHeading); }
 
 function playTitle(done) {
@@ -73,6 +74,7 @@ function playTitle(done) {
   const start = performance.now();
   const total = TITLE_STEPS.length * TITLE_STEP_MS;
   const tick = (now) => {
+    if (reduceMotion) { titlePx = 1; titleAlpha = 1; drawTitle(); done(); return; }
     // rAF's timestamp can land slightly before `start`, so clamp at 0
     const p = Math.min(1, Math.max(0, (now - start) / total));
     titlePx = TITLE_STEPS[Math.min(TITLE_STEPS.length - 1, Math.floor(p * TITLE_STEPS.length))];
@@ -107,7 +109,7 @@ for (const event of ["pointerleave", "pointercancel"]) {
 window.addEventListener("blur", () => { titleWave.active = false; });
 
 function drawTitleWave(now, dt) {
-  if (reduceMotion || !titleWave.ready) return;
+  if (reduceMotion || !titleWave.ready || titleFall.active) return;
   const target = titleWave.active ? 1 : 0;
   if (!target && titleWave.strength === 0) return;
   titleWave.strength += (target - titleWave.strength) * (1 - Math.exp(-dt * 14));
@@ -148,6 +150,178 @@ function drawTitleWave(now, dt) {
   }
   ctx.globalAlpha = 1;
 }
+
+/* ---------- Title easter egg: a viewport-pinned, tumbling chain reaction ---------- */
+const letterTargets = document.getElementById("title-letters");
+const fallingCanvas = document.getElementById("falling-title");
+const fallingCtx = fallingCanvas.getContext("2d");
+const motionNotice = document.getElementById("motion-notice");
+const titleFall = { active: false, letters: [], start: 0, noticeTimer: null };
+const FALL_THROUGH_AT = 2500;
+const DISAPPEAR_AT = 2800;
+const RETURN_AT = DISAPPEAR_AT + 500;
+const POP_MS = 180;
+
+// Use the same advances and part boundaries as the original canvas rendering.
+function titleLetterLayout() {
+  const { canvas, ctx, parts, weight, spacing } = heroHeading;
+  ctx.font = titleFont(canvas.fs, weight);
+  if ("letterSpacing" in ctx) ctx.letterSpacing = `${spacing * canvas.fs}px`;
+  const scale = parseFloat(canvas.style.width) / canvas.width;
+  let x = canvas.fs * 0.05;
+  const letters = [];
+  for (const [text] of parts) {
+    for (let i = 0; i < text.length; i++) {
+      const left = x + ctx.measureText(text.slice(0, i)).width;
+      const right = x + ctx.measureText(text.slice(0, i + 1)).width;
+      letters.push({ char: text[i], left: left * scale, width: (right - left) * scale });
+    }
+    x += ctx.measureText(text).width;
+  }
+  return letters;
+}
+
+function sizeTitleLetters() {
+  const layout = titleLetterLayout();
+  if (!letterTargets.children.length) {
+    layout.forEach((letter, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "title-letter";
+      button.setAttribute("aria-label", `Animate title: ${letter.char}`);
+      button.addEventListener("click", () => startTitleFall(index));
+      letterTargets.appendChild(button);
+    });
+    // The transparent hit targets sit above the canvas, so forward its hover effect.
+    for (const event of ["pointerenter", "pointermove"]) letterTargets.addEventListener(event, trackTitlePointer);
+    for (const event of ["pointerleave", "pointercancel"]) {
+      letterTargets.addEventListener(event, () => { titleWave.active = false; });
+    }
+  }
+  layout.forEach((letter, i) => {
+    letterTargets.children[i].style.left = `${letter.left}px`;
+    letterTargets.children[i].style.width = `${letter.width}px`;
+  });
+}
+
+function finishTitleFall() {
+  titleFall.active = false;
+  titleFall.letters = [];
+  fallingCanvas.hidden = true;
+  titleWave.active = false;
+  titleWave.strength = 0;
+  drawHeading(heroHeading);
+}
+
+function startTitleFall(origin) {
+  // Check the current preference on every attempt, including keyboard activation.
+  if (motionPreference.matches) {
+    motionNotice.hidden = false;
+    clearTimeout(titleFall.noticeTimer);
+    titleFall.noticeTimer = setTimeout(() => { motionNotice.hidden = true; }, 5000);
+    return;
+  }
+  if (titleFall.active || !titleWave.ready) return;
+  titleWave.strength = 0;
+  drawHeading(heroHeading);
+  const rect = heroHeading.canvas.getBoundingClientRect();
+  const dpr = heroHeading.canvas.width / parseFloat(heroHeading.canvas.style.width);
+  titleFall.letters = titleLetterLayout().map((letter, index) => {
+    const sprite = document.createElement("canvas");
+    // Include the leading inset in the first slice; adjacent slices preserve kerning.
+    const left = index === 0 ? 0 : letter.left;
+    const width = letter.width + letter.left - left;
+    const metrics = heroHeading.offCtx.measureText(letter.char);
+    const top = Math.max(0, Math.floor(heroHeading.canvas.height / 2 - (metrics.actualBoundingBoxAscent ?? heroHeading.canvas.height / 2)) - 1);
+    const bottom = Math.min(heroHeading.canvas.height, Math.ceil(heroHeading.canvas.height / 2 + (metrics.actualBoundingBoxDescent ?? heroHeading.canvas.height / 2)) + 1);
+    const height = bottom - top;
+    sprite.width = Math.ceil(width * dpr);
+    sprite.height = height;
+    sprite.getContext("2d").drawImage(heroHeading.canvas, left * dpr, top,
+      width * dpr, sprite.height, 0, 0, sprite.width, sprite.height);
+    return {
+      sprite, left, width, height: height / dpr,
+      x: rect.left + left + width / 2, y: rect.top + (top + height / 2) / dpr,
+      vx: (Math.random() - 0.5) * 420, vy: -100 - Math.random() * 160,
+      angle: 0, spin: (Math.random() - 0.5) * 9,
+      delay: Math.abs(index - origin) * 48,
+      restitution: 0.25 + Math.random() * 0.2,
+    };
+  });
+  const scale = Math.min(window.devicePixelRatio || 1, 2);
+  fallingCanvas.width = Math.round(window.innerWidth * scale);
+  fallingCanvas.height = Math.round(window.innerHeight * scale);
+  fallingCanvas.style.width = `${window.innerWidth}px`;
+  fallingCanvas.style.height = `${window.innerHeight}px`;
+  fallingCtx.setTransform(scale, 0, 0, scale, 0, 0);
+  titleFall.active = true;
+  titleFall.start = performance.now();
+  fallingCanvas.hidden = false;
+}
+
+function drawTitleFall(now, dt) {
+  if (!titleFall.active) return;
+  const elapsed = now - titleFall.start;
+  if (elapsed >= RETURN_AT + POP_MS) { finishTitleFall(); return; }
+  const W = window.innerWidth, H = window.innerHeight;
+  fallingCtx.clearRect(0, 0, W, H);
+  drawHeading(heroHeading);
+  const { ctx, canvas } = heroHeading;
+  const dpr = canvas.width / parseFloat(canvas.style.width);
+  if (elapsed >= RETURN_AT) {
+    // A quick pop at the current title position, even if the user has scrolled.
+    const p = Math.min(1, (elapsed - RETURN_AT) / POP_MS);
+    const scale = 1 + Math.sin(p * Math.PI) * 0.12;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = p;
+    ctx.drawImage(heroHeading.off, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+    ctx.restore();
+    return;
+  }
+  for (const letter of titleFall.letters) {
+    if (elapsed < letter.delay) continue;
+    ctx.clearRect(letter.left * dpr, 0, letter.width * dpr, canvas.height);
+    if (elapsed >= DISAPPEAR_AT) continue;
+    // Semi-implicit gravity, wall impacts and a damped, rotating floor bounce.
+    letter.vy += 2400 * dt;
+    letter.x += letter.vx * dt;
+    letter.y += letter.vy * dt;
+    letter.angle += letter.spin * dt;
+    const rx = Math.abs(Math.cos(letter.angle)) * letter.width / 2 + Math.abs(Math.sin(letter.angle)) * letter.height / 2;
+    const ry = Math.abs(Math.sin(letter.angle)) * letter.width / 2 + Math.abs(Math.cos(letter.angle)) * letter.height / 2;
+    if (letter.x < rx || letter.x > W - rx) {
+      letter.x = Math.max(rx, Math.min(W - rx, letter.x));
+      letter.vx *= -0.6;
+      letter.spin *= -0.7;
+    }
+    if (elapsed < FALL_THROUGH_AT && letter.y + ry > H) {
+      letter.y = H - ry;
+      letter.vy = -Math.abs(letter.vy) * letter.restitution;
+      letter.vx *= 0.8;
+      letter.spin *= 0.65;
+    }
+    fallingCtx.save();
+    fallingCtx.translate(letter.x, letter.y);
+    fallingCtx.rotate(letter.angle);
+    fallingCtx.drawImage(letter.sprite, -letter.width / 2, -letter.height / 2, letter.width, letter.height);
+    fallingCtx.restore();
+  }
+}
+
+motionPreference.addEventListener("change", () => {
+  reduceMotion = motionPreference.matches;
+  if (reduceMotion) {
+    if (titleFall.active) finishTitleFall();
+    titleWave.active = false;
+    titleWave.strength = 0;
+    titlePx = 1;
+    titleAlpha = 1;
+    drawTitle();
+  }
+});
 
 /* ---------- Projects ---------- */
 const projects = [
@@ -312,6 +486,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   drawTitleWave(now, dt);
+  drawTitleFall(now, dt);
   for (const c of cards) {
     c.speed += ((c.hover ? 1 : IDLE_SPEED) - c.speed) * Math.min(1, dt * 4);
     if (c.video) c.video.playbackRate = c.speed;
@@ -365,7 +540,10 @@ function frame(now) {
 }
 
 /* ---------- Boot ---------- */
-window.addEventListener("resize", () => { sizeTitle(); drawTitle(); resizeCards(); });
+window.addEventListener("resize", () => {
+  if (titleFall.active) finishTitleFall();
+  sizeTitle(); drawTitle(); resizeCards();
+});
 
 // Wait for both font weights before measuring the headings (but never hang on them).
 const fontReady = Promise.all([700, 600].map((weight) => document.fonts.load(titleFont(100, weight)))).catch(() => {});
