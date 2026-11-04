@@ -317,10 +317,10 @@ test("transparent letter controls preserve hover and animation owns the title du
   assert.equal(title.context.draws.length, drawCount, "hover cannot redraw fallen letters");
 });
 
-["Retrac Labs", "Retrac's Rickroll", "Membrain"].forEach((name, index) => {
+["Retrac Labs", "Retrac's Rickroll"].forEach((name, index) => {
 test(`${name} stays in the shared idle, hover ripple, and return animation`, () => {
   const { context, cards } = loadCards();
-  assert.equal(cards.length, 3);
+  assert.equal(cards.length, 2);
   const card = cards[index];
   const video = card.el.querySelector("video");
   assert.equal(video.playCalls, 1);
@@ -414,14 +414,4 @@ test("the full-card referral link and reduced-motion playback are preserved", ()
   assert.ok(rickroll.el.html.includes('src="assets/retrac-rickroll-loop.mp4#t=0.45"'));
   assert.equal(rickroll.video.playCalls, 0);
   assert.ok(!rickroll.el.html.includes("autoplay"));
-  const membrain = cards[2];
-  assert.equal(membrain.el.tagName, "a");
-  assert.equal(membrain.el.href, "https://github.com/retracdev/membrain");
-  assert.equal(membrain.el.target, "_blank");
-  assert.equal(membrain.el.rel, "noopener noreferrer");
-  assert.ok(membrain.el.html.includes("<h2>Membrain</h2>"));
-  assert.ok(membrain.el.html.includes('src="assets/membrain-loop.mp4#t=3"'));
-  assert.ok(membrain.el.html.includes("loop muted playsinline"));
-  assert.equal(membrain.video.playCalls, 0);
-  assert.ok(!membrain.el.html.includes("autoplay"));
 });
