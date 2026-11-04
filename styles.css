@@ -42,6 +42,37 @@ body {
 }
 
 /* ---------- Title ---------- */
+.account {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.account-greeting {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account a { flex-shrink: 0; color: var(--fg); text-decoration: none; }
+.account a:hover { text-decoration: underline; }
+.account a:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; }
+.account-placeholder {
+  width: 160px;
+  max-width: 100%;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
 .hero {
   max-width: 1200px;
   margin: 0 auto;
@@ -174,6 +205,7 @@ body {
   .projects { grid-template-columns: 1fr; }
 }
 @media (max-width: 400px) {
+  .account { left: 16px; right: 16px; }
   .hero, .bio, .projects { padding-left: 16px; padding-right: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {

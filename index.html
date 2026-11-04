@@ -17,6 +17,9 @@
 <div class="background-veil" aria-hidden="true"></div>
 
 <header class="hero site-content">
+  <nav class="account" id="account" aria-label="Account" aria-busy="true">
+    <span class="account-placeholder" role="status"><span class="sr-only">Checking account status</span></span>
+  </nav>
   <h1 class="title">
     <span class="sr-only">retrac.space</span>
     <canvas id="title" aria-hidden="true"></canvas>
@@ -47,6 +50,7 @@
 <canvas id="falling-title" class="falling-title" aria-hidden="true" hidden></canvas>
 <div id="motion-notice" class="motion-notice" role="status" hidden>Unable to play that animation because you have reduce motion on.</div>
 <script src="background.js"></script>
+<script src="account.js"></script>
 <script src="bio.js"></script>
 <script src="main.js"></script>
 </body>
