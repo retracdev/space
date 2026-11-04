@@ -42,7 +42,8 @@
       const data = await response.json();
       if (data === null) {
         render("Sign in");
-      } else if (data?.session && data?.user) {
+      } else if (data?.user && typeof data.user === "object") {
+        // The account endpoint may return a user without session metadata.
         // Some accounts may still need to choose a username on the account site.
         const username = typeof data.user.username === "string" ? data.user.username : "";
         render("Manage my account", username);
