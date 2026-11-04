@@ -351,11 +351,6 @@ const projects = [
     video: "assets/retrac-rickroll-loop.mp4#t=0.45",
     href: "https://surprise.retrac.space/",
   },
-  {
-    name: "Membrain",
-    video: "assets/membrain-loop.mp4#t=3",
-    href: "https://github.com/retracdev/membrain",
-  },
 ];
 
 /* ---------- Scenes: draw(ctx, w, h, t) ---------- */
