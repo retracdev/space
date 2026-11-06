@@ -317,10 +317,10 @@ test("transparent letter controls preserve hover and animation owns the title du
   assert.equal(title.context.draws.length, drawCount, "hover cannot redraw fallen letters");
 });
 
-["Retrac Labs", "Retrac's Rickroll"].forEach((name, index) => {
+["Retrac Labs", "Retrac's Rickroll", "Simple Soundboard"].forEach((name, index) => {
 test(`${name} stays in the shared idle, hover ripple, and return animation`, () => {
   const { context, cards } = loadCards();
-  assert.equal(cards.length, 2);
+  assert.equal(cards.length, 3);
   const card = cards[index];
   const video = card.el.querySelector("video");
   assert.equal(video.playCalls, 1);

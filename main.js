@@ -351,6 +351,11 @@ const projects = [
     video: "assets/retrac-rickroll-loop.mp4#t=0.45",
     href: "https://surprise.retrac.space/",
   },
+  {
+    name: "Simple Soundboard",
+    video: "assets/simple-soundboard-loop.mp4",
+    href: "https://soundboard.retrac.space/",
+  },
 ];
 
 /* ---------- Scenes: draw(ctx, w, h, t) ---------- */
