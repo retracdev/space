@@ -54,6 +54,9 @@ function loadCards(reduceMotion = false, dpr = 1, search = '') {
   title.parentElement = { fontSize: "168px", fontWeight: "700", letterSpacing: "-6.72px" };
   const projectsTitle = new Element("canvas");
   projectsTitle.parentElement = { fontSize: "32px", fontWeight: "600", letterSpacing: "-0.64px" };
+  const company = new Element("section");
+  const companyTitle = new Element("canvas");
+  companyTitle.parentElement = { fontSize: "32px", fontWeight: "600", letterSpacing: "-0.64px" };
   const frames = [];
   const letterTargets = new Element("span");
   const fallingCanvas = new Element("canvas");
@@ -70,6 +73,7 @@ function loadCards(reduceMotion = false, dpr = 1, search = '') {
       documentElement: { setAttribute() {} },
       createElement: (tag) => new Element(tag),
       getElementById: (id) => ({ projects: container, title, "projects-title": projectsTitle,
+        company, "company-title": companyTitle,
         "title-letters": letterTargets, "falling-title": fallingCanvas, "motion-notice": motionNotice })[id],
       fonts: { load: () => new Promise(() => {}) },
     },
@@ -85,7 +89,7 @@ function loadCards(reduceMotion = false, dpr = 1, search = '') {
   vm.runInContext(motionSource, context);
   vm.runInContext(source, context);
   vm.runInContext("resizeCards()", context);
-  return { context, cards: vm.runInContext("cards", context), container, title, projectsTitle, frames,
+  return { context, cards: vm.runInContext("cards", context), container, company, title, projectsTitle, companyTitle, frames,
     letterTargets, fallingCanvas, motionNotice, preference, windowListeners, timers };
 }
 
@@ -317,7 +321,19 @@ test("transparent letter controls preserve hover and animation owns the title du
   assert.equal(title.context.draws.length, drawCount, "hover cannot redraw fallen letters");
 });
 
-["Retrac Labs", "Retrac's Rickroll", "Simple Soundboard"].forEach((name, index) => {
+test("Simple Soundboard leads the featured projects and Retrac Labs sits alone under My Company", () => {
+  const { context, cards, container, company, companyTitle } = loadCards(true);
+  const names = (section) => section.children.map((el) => el.html.match(/<h2>(.*)<\/h2>/)[1]);
+  assert.deepEqual(names(container), ["Simple Soundboard", "Retrac's Rickroll"]);
+  assert.deepEqual(names(company), ["Retrac Labs"]);
+  assert.equal(cards.length, 3);
+  vm.runInContext("sizeTitle(); drawTitle()", context);
+  assert.equal(companyTitle.context.draws.at(-1)[0].context.text.at(-1)[0], "My Company");
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  assert.ok(html.indexOf('id="company"') > html.indexOf('id="projects"'), "company section follows the projects");
+});
+
+["Simple Soundboard", "Retrac's Rickroll", "Retrac Labs"].forEach((name, index) => {
 test(`${name} stays in the shared idle, hover ripple, and return animation`, () => {
   const { context, cards } = loadCards();
   assert.equal(cards.length, 3);
@@ -398,7 +414,7 @@ test("URL override resolves headings, skips video autoplay, and blocks title ani
 
 test("the full-card referral link and reduced-motion playback are preserved", () => {
   const { cards } = loadCards(true);
-  const card = cards[0];
+  const card = cards[2];
   assert.equal(card.el.tagName, "a");
   assert.equal(card.el.href, "https://retraclabs.io/?utm_source=retrac.space&utm_medium=referral&utm_campaign=personal_site");
   assert.equal(card.el.target, "_blank");
