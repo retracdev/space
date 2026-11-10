@@ -164,6 +164,12 @@ body {
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+/* A lone company card keeps the grid's card width, centered on the row. */
+.company .card {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 12px);
+}
 .card {
   display: block;
   color: inherit;
@@ -203,6 +209,7 @@ body {
 
 @media (max-width: 720px) {
   .projects { grid-template-columns: 1fr; }
+  .company .card { width: 100%; }
 }
 @media (max-width: 400px) {
   .account { left: 16px; right: 16px; }

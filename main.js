@@ -7,6 +7,7 @@ const TITLE_STEP_MS = 95;
 const headings = [
   { id: "title", parts: [["retrac", "#f3f0ff"], [".space", "#8b86a3"]] },
   { id: "projects-title", parts: [["Featured Projects", "#f3f0ff"]] },
+  { id: "company-title", parts: [["My Company", "#f3f0ff"]] },
 ].map(({ id, parts }) => {
   const canvas = document.getElementById(id);
   const off = document.createElement("canvas");
@@ -342,9 +343,9 @@ motionPreference.addEventListener("change", () => {
 /* ---------- Projects ---------- */
 const projects = [
   {
-    name: "Retrac Labs",
-    video: "assets/retrac-labs-loop.mp4",
-    href: "https://retraclabs.io/?utm_source=retrac.space&utm_medium=referral&utm_campaign=personal_site",
+    name: "Simple Soundboard",
+    video: "assets/simple-soundboard-loop.mp4",
+    href: "https://soundboard.retrac.space/",
   },
   {
     name: "Retrac's Rickroll",
@@ -352,9 +353,10 @@ const projects = [
     href: "https://surprise.retrac.space/",
   },
   {
-    name: "Simple Soundboard",
-    video: "assets/simple-soundboard-loop.mp4",
-    href: "https://soundboard.retrac.space/",
+    name: "Retrac Labs",
+    section: "company",
+    video: "assets/retrac-labs-loop.mp4",
+    href: "https://retraclabs.io/?utm_source=retrac.space&utm_medium=referral&utm_campaign=personal_site",
   },
 ];
 
@@ -433,7 +435,10 @@ const IDLE_SPEED = 0.15;           // animation speed when not hovered
 const LEVELS = [10, 6, 4, 2, 1];   // pixel sizes of each ripple ring, outer -> inner
 const RIPPLE_TIME = 0.9;           // seconds for the ripple to cover the whole card
 const BAND = 0.16;                 // ring thickness (fraction of card diagonal)
-const container = document.getElementById("projects");
+const containers = {
+  projects: document.getElementById("projects"),
+  company: document.getElementById("company"),
+};
 const cards = [];
 
 projects.forEach((p) => {
@@ -450,7 +455,7 @@ projects.forEach((p) => {
       ? `<video hidden src="${p.video}" ${reduceMotion ? "" : "autoplay"} loop muted playsinline preload="auto" aria-hidden="true"></video>`
       : ""}
     <div class="info"><h2>${p.name}</h2></div>`;
-  container.appendChild(el);
+  containers[p.section || "projects"].appendChild(el);
 
   const canvas = el.querySelector("canvas");
   const video = el.querySelector("video");
@@ -569,6 +574,6 @@ Promise.race([fontReady, new Promise((r) => setTimeout(r, 1500))]).then(() => {
   requestAnimationFrame(frame);
   playTitle(() => {
     titleWave.ready = true;
-    container.querySelectorAll(".card").forEach((el, i) => setTimeout(() => el.classList.add("shown"), reduceMotion ? 0 : i * 140));
+    cards.forEach(({ el }, i) => setTimeout(() => el.classList.add("shown"), reduceMotion ? 0 : i * 140));
   });
 });
