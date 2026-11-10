@@ -348,6 +348,11 @@ const projects = [
     href: "https://soundboard.retrac.space/",
   },
   {
+    name: "Glow",
+    video: "assets/glow-loop.mp4",
+    href: "https://glowstudio.retrac.space/",
+  },
+  {
     name: "Retrac's Rickroll",
     video: "assets/retrac-rickroll-loop.mp4#t=0.45",
     href: "https://surprise.retrac.space/",

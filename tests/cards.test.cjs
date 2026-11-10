@@ -324,19 +324,19 @@ test("transparent letter controls preserve hover and animation owns the title du
 test("Simple Soundboard leads the featured projects and Retrac Labs sits alone under My Company", () => {
   const { context, cards, container, company, companyTitle } = loadCards(true);
   const names = (section) => section.children.map((el) => el.html.match(/<h2>(.*)<\/h2>/)[1]);
-  assert.deepEqual(names(container), ["Simple Soundboard", "Retrac's Rickroll"]);
+  assert.deepEqual(names(container), ["Simple Soundboard", "Glow", "Retrac's Rickroll"]);
   assert.deepEqual(names(company), ["Retrac Labs"]);
-  assert.equal(cards.length, 3);
+  assert.equal(cards.length, 4);
   vm.runInContext("sizeTitle(); drawTitle()", context);
   assert.equal(companyTitle.context.draws.at(-1)[0].context.text.at(-1)[0], "My Company");
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   assert.ok(html.indexOf('id="company"') > html.indexOf('id="projects"'), "company section follows the projects");
 });
 
-["Simple Soundboard", "Retrac's Rickroll", "Retrac Labs"].forEach((name, index) => {
+["Simple Soundboard", "Glow", "Retrac's Rickroll", "Retrac Labs"].forEach((name, index) => {
 test(`${name} stays in the shared idle, hover ripple, and return animation`, () => {
   const { context, cards } = loadCards();
-  assert.equal(cards.length, 3);
+  assert.equal(cards.length, 4);
   const card = cards[index];
   const video = card.el.querySelector("video");
   assert.equal(video.playCalls, 1);
@@ -370,8 +370,8 @@ test(`${name} stays in the shared idle, hover ripple, and return animation`, () 
   assert.ok(Math.abs(video.playbackRate - 0.15) < 0.02);
   assert.equal(card.r, 0);
   assert.equal(card.ctx.draws.at(-1)[0], card.offs[16].cv);
-  assert.ok(cards[1].offs[16], "the Rickroll card also renders");
-  assert.equal(cards[1].offs[16].ctx.draws.at(-1)[0], cards[1].video);
+  assert.ok(cards[2].offs[16], "the Rickroll card also renders");
+  assert.equal(cards[2].offs[16].ctx.draws.at(-1)[0], cards[2].video);
 });
 });
 
@@ -414,14 +414,14 @@ test("URL override resolves headings, skips video autoplay, and blocks title ani
 
 test("the full-card referral link and reduced-motion playback are preserved", () => {
   const { cards } = loadCards(true);
-  const card = cards[2];
+  const card = cards[3];
   assert.equal(card.el.tagName, "a");
   assert.equal(card.el.href, "https://retraclabs.io/?utm_source=retrac.space&utm_medium=referral&utm_campaign=personal_site");
   assert.equal(card.el.target, "_blank");
   assert.equal(card.el.rel, "noopener noreferrer");
   assert.equal(card.el.querySelector("video").playCalls, 0);
   assert.ok(!card.el.html.includes("autoplay"));
-  const rickroll = cards[1];
+  const rickroll = cards[2];
   assert.equal(rickroll.el.tagName, "a");
   assert.equal(rickroll.el.href, "https://surprise.retrac.space/");
   assert.equal(rickroll.el.target, "_blank");
