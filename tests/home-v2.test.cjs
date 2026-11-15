@@ -2,86 +2,107 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const core = require('../home-v2/core.js');
 
-// Exercise event behavior without launching a browser.
-function boot(reduced = false) {
-  function element() {
-    const events = {};
-    return {
-      events, children: [], styles: {}, hidden: true, plays: 0, pauses: 0,
-      addEventListener(name, callback) { (events[name] ||= []).push(callback); },
-      emit(name, event = {}) { return Promise.all((events[name] || []).map(fn => fn(event))); },
-      setAttribute() {}, removeAttribute() {},
-      replaceChildren(...children) { this.children = children; },
-      style: { setProperty() {}, removeProperty() {} },
-      classList: { add() {}, remove() {}, toggle() { return true; } },
-      getBoundingClientRect() { return { left: 0, top: 0, width: 400, height: 300 }; },
-      play() { this.plays++; return Promise.resolve(); },
-      pause() { this.pauses++; },
-      closest() { return this.link || null; },
-      animate() {
-        let reject;
-        const animation = { finished: new Promise((_, fail) => { reject = fail; }), cancel() { reject(new Error('Cancelled')); } };
-        animations.push(animation);
-        return animation;
-      },
-    };
-  }
-  const animations = [];
-  const ids = Object.fromEntries(['stage', 'wordmark-plane', 'letters', 'notice'].map(id => [id, element()]));
-  const video = element();
-  video.link = element();
-  const document = Object.assign(element(), {
-    hidden: false, body: element(), getElementById: id => ids[id],
-    createElement: element, querySelectorAll: selector => selector === 'video' ? [video] : [],
-  });
-  const motion = Object.assign(element(), { matches: reduced });
-  const window = element();
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../home-v2/home-v2.js'), 'utf8'), {
-    document, window, motionSettings: motion, matchMedia: () => ({ matches: true }),
-    setTimeout: () => 1, clearTimeout() {},
-  });
-  return { ids, video, document, motion, animations };
-}
+const dir = path.join(__dirname, '../home-v2');
+const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+const scene = fs.readFileSync(path.join(dir, 'home-v2.js'), 'utf8');
+const original = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 
-test('v2 logo supports keyboard activation and live reduced motion cancels its fall', async () => {
-  const { ids, animations, motion } = boot();
-  assert.equal(ids.letters.children.length, 12);
-  const activation = ids.letters.children[3].emit('click');
-  assert.equal(animations.length, 12);
-  motion.matches = true;
-  await motion.emit('change');
-  await activation;
-  await ids.letters.children[3].emit('click');
-  assert.equal(animations.length, 12);
-  assert.equal(ids.notice.hidden, false);
-  assert.match(ids.notice.textContent, /Reduced motion/);
+test('voxelize keeps cells that are at least half covered', () => {
+  const width = 8, height = 4, data = new Uint8ClampedArray(width * height * 4);
+  // Fill the left 4x4 block fully and 6 of 16 pixels of the right block.
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) data[(y * width + x) * 4 + 3] = 255;
+  for (let i = 0; i < 6; i++) data[((i % 2) * width + 4 + Math.floor(i / 2)) * 4 + 3] = 255;
+  assert.deepEqual(core.voxelize(data, width, height, 4), [2, 2]);
 });
 
-test('v2 videos play on deliberate interaction and pause when motion is reduced or the tab is hidden', async () => {
-  const { video, motion, document } = boot();
-  assert.equal(video.plays, 0);
-  await video.link.emit('pointerenter', { pointerType: 'touch' });
-  assert.equal(video.plays, 0);
-  await video.link.emit('focusin');
-  assert.equal(video.plays, 1);
-  document.hidden = true;
-  await document.emit('visibilitychange');
-  assert.ok(video.pauses > 0);
-  motion.matches = true;
-  document.hidden = false;
-  await motion.emit('change');
-  await video.link.emit('pointerenter', { pointerType: 'mouse' });
-  assert.equal(video.plays, 1);
+test('the Konami code matches after overlapping prefixes and resets afterwards', () => {
+  const feed = core.createSequence();
+  const keys = ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'B', 'a'];
+  assert.deepEqual(keys.map(feed).map((hit, i) => hit && i), [...Array(10).fill(false), 10]);
+  assert.equal(feed('a'), false);
 });
 
-test('v2 secret code stays available as a static discovery under reduced motion', async () => {
-  const { document, ids, animations } = boot(true);
-  for (const key of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) {
-    await document.emit('keydown', { key, target: { closest: () => null } });
+test('falling letters bounce on the visible floor, then fall through and vanish', () => {
+  const [body] = core.createFall([{ x: 400, y: 500, hx: 30, hy: 40, hz: 10 }], 0, () => 0.5);
+  const { FALL } = core;
+  let elapsed = 0, bounced = false;
+  while (elapsed < FALL.throughAt - 20) {
+    const before = body.vy;
+    core.stepFall(body, 1 / 60, elapsed, 800, 600, 1100);
+    if (before > 0 && body.vy <= 0) bounced = true;
+    elapsed += 1000 / 60;
+    assert.ok(body.y + core.rotatedExtents(body).y <= 600 + 1e-6, 'never sinks through the floor early');
   }
-  assert.equal(animations.length, 0);
-  assert.equal(ids.notice.hidden, false);
-  assert.match(ids.notice.textContent, /Secret orbit discovered/);
+  assert.ok(bounced);
+  for (; elapsed < FALL.disappearAt; elapsed += 1000 / 60) core.stepFall(body, 1 / 60, elapsed, 800, 600, 1100);
+  assert.ok(body.y > 600, 'drops off screen after the fall-through point');
+  const frozen = body.y;
+  core.stepFall(body, 1 / 60, FALL.disappearAt + 1, 800, 600, 1100);
+  assert.equal(body.y, frozen);
+});
+
+test('the floor moves with depth so letters near the camera still land on screen', () => {
+  const near = { x: 400, y: 0, z: 200, vx: 0, vy: 5000, vz: 0, rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, sz: 0, hx: 10, hy: 10, hz: 10, delay: 0, restitution: 0.3 };
+  core.stepFall(near, 0.2, 100, 800, 600, 1000);
+  const visibleBottom = 300 + 300 * (1000 - near.z) / 1000;
+  assert.ok(Math.abs(near.y + 10 - visibleBottom) < 1e-6);
+});
+
+test('letters wait for their chain-reaction delay', () => {
+  const bodies = core.createFall([0, 1, 2, 3].map(x => ({ x, y: 0, hx: 1, hy: 1, hz: 1 })), 2, () => 0.5);
+  assert.deepEqual(bodies.map(b => b.delay), [96, 48, 0, 48]);
+  const before = { ...bodies[0] };
+  core.stepFall(bodies[0], 1 / 60, 50, 800, 600, 1100);
+  assert.deepEqual(bodies[0], before);
+});
+
+test('hover wave and ripple helpers stay inside their bounds', () => {
+  assert.equal(core.rippleDepth(100, 0, 100, 1, 1), 0);
+  assert.equal(core.rippleDepth(10, 0, 100, 1, 0), 0);
+  const depth = core.rippleDepth(20, 10, 100, 0.3, 1, 4);
+  assert.equal(Math.abs(depth % 4), 0);
+  assert.ok(Math.abs(depth) <= 22);
+  assert.equal(core.steppedTime(54), 0);
+  assert.equal(core.rippleFront(0, 100, 50, 0, 0).front, 0);
+  const full = core.rippleFront(1, 100, 50, 0, 0);
+  assert.ok(Math.abs(full.front - (Math.hypot(100, 50) + full.band * 4)) < 1e-9);
+});
+
+test('entrance and shatter start and end at rest', () => {
+  assert.equal(core.entranceAmount(0, 0), 1);
+  assert.equal(core.entranceAmount(2000, 0), 0);
+  assert.equal(core.shatterAmount(0), 0);
+  assert.equal(core.shatterAmount(1900), 0);
+  assert.ok(core.shatterAmount(680) > 0.99);
+  assert.equal(core.revealAmount(900, 800), 0);
+  assert.equal(core.revealAmount(400, 800), 1);
+});
+
+test('v2 keeps the original copy, links and videos without invented taglines', () => {
+  for (const paragraph of original.match(/<p>[^<]+<\/p>/g)) assert.ok(html.includes(paragraph), paragraph);
+  for (const link of ['https://soundboard.retrac.space/', 'https://glowstudio.retrac.space/', 'https://surprise.retrac.space/',
+    'https://retraclabs.io/?utm_source=retrac.space&amp;utm_medium=referral&amp;utm_campaign=personal_site']) assert.ok(html.includes(`href="${link}"`), link);
+  const names = [...html.matchAll(/class="card-name">([^<]+)</g)].map(m => m[1]);
+  assert.deepEqual(names, ['Simple Soundboard', 'Glow', "Retrac's Rickroll", 'Retrac Labs']);
+  for (const src of html.matchAll(/src="(\/assets\/[^"#]+)/g)) assert.ok(fs.existsSync(path.join(__dirname, '..', src[1])), src[1]);
+  assert.doesNotMatch(html, /TRUST THIS|EXPERIMENT 0|IN ORBIT|EXPLORE THE PROJECTS|STAYS IN PLACE/i);
+});
+
+test('v2 loads motion settings first, pins three.js and has no motion toggle', () => {
+  assert.ok(html.indexOf('/motion.js') < html.indexOf('home-v2.css'));
+  assert.ok(html.indexOf('/motion.js') < html.indexOf('home-v2.js'));
+  assert.ok(html.indexOf('./core.js') < html.indexOf('./home-v2.js'));
+  assert.match(html, /three@\d+\.\d+\.\d+\/build\/three\.module\.js/);
+  assert.doesNotMatch(html, /type="checkbox"|motion-toggle|aria-pressed/);
+  assert.match(html, /id="motion-notice"[^>]*hidden>Unable to play that animation because you have reduce motion on\.</);
+});
+
+test('both Easter eggs check reduced motion on every attempt', () => {
+  const fall = scene.slice(scene.indexOf('function startFall'), scene.indexOf('function updateFall'));
+  assert.match(fall, /if \(motion\.matches\) \{ announce\(\); return; \}/);
+  const konami = scene.slice(scene.indexOf("document.addEventListener('keydown'"), scene.indexOf('/* ---------- Section headings'));
+  assert.match(konami, /if \(motion\.matches\) \{ announce\(\); return; \}/);
+  assert.match(scene, /if \(!reduced\) schedule\(\);/, 'no continuous loop with reduced motion');
 });
