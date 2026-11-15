@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <meta name="description" content="Carter Welch's little corner of the internet. Projects, experiments, and things sent into orbit.">
+  <title>retrac.space / home v2</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <script src="/motion.js"></script>
+  <link rel="stylesheet" href="./home-v2.css">
+</head>
+<body>
+  <a class="skip-link" href="#projects">Skip to projects</a>
+  <div class="starfield" aria-hidden="true"></div>
+  <header class="topbar wrap">
+    <a class="home-link" href="/" aria-label="Original retrac.space homepage"><span class="brand-mark" aria-hidden="true">r.</span><span>retrac.space</span></a>
+    <span class="edition">EXPERIMENT 002 <span>/</span> A LITTLE MORE DEPTH</span>
+    <nav class="account" id="account" aria-label="Account" aria-busy="true">
+      <a href="https://accounts.retrac.space">Manage my account</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-meta mono"><span><i class="status-dot" aria-hidden="true"></i> CARTER WELCH'S CORNER OF THE INTERNET</span><span class="coordinates">HOME / 02</span></div>
+      <div class="stage" id="stage">
+        <div class="stage-world" aria-hidden="true">
+          <div class="planet"></div>
+          <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+          <div class="floor-grid"></div><div class="floor-glow"></div>
+          <div class="satellite"><div class="cube"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+          <span class="space-cross cross-one">+</span><span class="space-cross cross-two">+</span>
+        </div>
+        <div class="wordmark-plane" id="wordmark-plane">
+          <h1 id="hero-title" class="wordmark"><span class="sr-only">retrac.space</span><span class="letters" id="letters" aria-hidden="true">retrac<span class="suffix">.space</span></span></h1>
+          <div class="logo-caption mono"><span>IDEAS IN ORBIT.</span><span>BUILT TO BE EXPLORED.</span></div>
+        </div>
+        <span class="stage-note mono">NOT EVERYTHING HERE<br>STAYS IN PLACE.</span>
+        <span class="axis mono" aria-hidden="true">Y ↑<br>└── X</span>
+      </div>
+      <div class="hero-bottom">
+        <p>A little space for the things I build.<br><span>Some useful. Some weird. All me.</span></p>
+        <a class="explore-link mono" href="#projects">EXPLORE THE PROJECTS <span aria-hidden="true">↘</span></a>
+      </div>
+    </section>
+
+    <section class="projects wrap" id="projects" aria-labelledby="projects-heading">
+      <div class="section-heading"><div><span class="eyebrow mono">01 / OUT IN THE WILD</span><h2 id="projects-heading">Featured projects<span class="accent">.</span></h2></div><span class="section-aside mono">SMALL IDEAS. REAL THINGS.</span></div>
+      <div class="project-grid">
+        <a class="project-card soundboard" href="https://soundboard.retrac.space/" target="_blank" rel="noopener noreferrer">
+          <div class="project-visual"><video src="/assets/simple-soundboard-loop.mp4" muted loop playsinline preload="metadata" aria-hidden="true"></video><span class="visual-fallback mono">SIMPLE<br>SOUNDBOARD</span><span class="project-index mono">P—001</span><span class="launch" aria-hidden="true">↗</span></div>
+          <div class="project-info"><div><h3>Simple Soundboard</h3><p>A little noise goes a long way.</p></div><span class="project-type mono">AUDIO / WEB</span></div>
+        </a>
+        <a class="project-card glow" href="https://glowstudio.retrac.space/" target="_blank" rel="noopener noreferrer">
+          <div class="project-visual"><video src="/assets/glow-loop.mp4" muted loop playsinline preload="metadata" aria-hidden="true"></video><span class="visual-fallback mono">GLOW<br>STUDIO</span><span class="project-index mono">P—002</span><span class="launch" aria-hidden="true">↗</span></div>
+          <div class="project-info"><div><h3>Glow</h3><p>Something a little brighter.</p></div><span class="project-type mono">STUDIO / WEB</span></div>
+        </a>
+        <a class="project-card rickroll" href="https://surprise.retrac.space/" target="_blank" rel="noopener noreferrer">
+          <div class="project-visual"><video src="/assets/retrac-rickroll-loop.mp4#t=0.45" muted loop playsinline preload="metadata" aria-hidden="true"></video><span class="visual-fallback mono">TRUST<br>THIS LINK.</span><span class="project-index mono">P—003</span><span class="launch" aria-hidden="true">↗</span></div>
+          <div class="project-info"><div><h3>Retrac's Rickroll</h3><p>You probably know where this is going.</p></div><span class="project-type mono">CHAOS / WEB</span></div>
+        </a>
+      </div>
+    </section>
+
+    <section class="about wrap" aria-labelledby="about-heading">
+      <div class="about-identity"><span class="eyebrow mono">02 / THE HUMAN BEHIND IT</span><div class="identity-art" aria-hidden="true"><div class="identity-disc">cw<span>EARTH, PROBABLY.</span></div><span class="identity-orbit"></span></div></div>
+      <div class="about-copy"><h2 id="about-heading">Hi, I'm Carter<span class="accent">.</span></h2><p>I'm a developer who loves building things, experimenting with new ideas, and bringing random projects to life.</p><p>This is where I share what I've been working on, things I've created, and whatever else I find interesting. Thanks for stopping by. Stay curious.</p><span class="signature mono">// ALWAYS A WORK IN PROGRESS</span></div>
+    </section>
+
+    <section class="company wrap" aria-labelledby="company-heading">
+      <div class="section-heading"><div><span class="eyebrow mono">03 / THE BIGGER PICTURE</span><h2 id="company-heading">My company<span class="accent">.</span></h2></div></div>
+      <a class="labs-card" href="https://retraclabs.io/?utm_source=retrac.space&amp;utm_medium=referral&amp;utm_campaign=personal_site" target="_blank" rel="noopener noreferrer">
+        <div class="labs-visual"><video src="/assets/retrac-labs-loop.mp4" muted loop playsinline preload="metadata" aria-hidden="true"></video><span class="visual-fallback mono">RETRAC LABS</span></div>
+        <div class="labs-copy"><span class="eyebrow mono">ANOTHER PART OF MY ORBIT</span><h3>Retrac Labs</h3><p>See what we're building over here.</p><span class="labs-link mono">VISIT RETRAC LABS <span aria-hidden="true">↗</span></span></div>
+      </a>
+    </section>
+  </main>
+
+  <footer class="footer wrap mono"><a href="/">← BACK TO THE ORIGINAL</a><span>MADE BY CARTER. SENT INTO SPACE.</span><a href="#hero-title">BACK TO TOP ↑</a></footer>
+  <div class="notice mono" id="notice" role="status" hidden></div>
+  <script src="/account.js"></script>
+  <script src="./home-v2.js"></script>
+</body>
+</html>
