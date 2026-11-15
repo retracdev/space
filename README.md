@@ -2,14 +2,15 @@
 A little space for all the cool things I've built.
 
 The experimental homepage lives at `/home-v2/` (static entry point:
-`home-v2/index.html`). It has the same copy, links and videos as the original,
-drawn as a three.js scene: the logo and headings are voxels sampled from the
-real font, and the project cards are thick slabs with the pixel-ripple video
-face. The DOM keeps the real text, links and buttons underneath, and the plain
-page shows if WebGL is unavailable. Click a logo letter to send the letters
-tumbling in 3D, or enter the Konami code (↑ ↑ ↓ ↓ ← → ← → B A) to shatter the
-logo. Animations follow the system reduced-motion preference and the existing
-`?reduce_motion=true` override. There is no motion toggle.
+`home-v2/index.html`). It is a three.js solar system: the sun is the bio and
+each project is a planet. Drag to look around, click a planet to fly to it,
+and click it again (or use the panel link) to visit the project. The planet
+list at the bottom does the same from the keyboard. Without WebGL, the page
+shows the bio and plain project links instead. Click a title letter to drop
+the letters, or enter the Konami code (↑ ↑ ↓ ↓ ← → ← → B A) for warp speed.
+With reduced motion (system setting or `?reduce_motion=true`), orbits stand
+still, camera moves are instant and previews stay paused. There is no motion
+toggle.
 
 Run the non-browser checks with `node --test tests/*.test.cjs`.
 

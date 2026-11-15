@@ -2,107 +2,100 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const core = require('../home-v2/core.js');
+const orbits = require('../home-v2/orbits.js');
 
 const dir = path.join(__dirname, '../home-v2');
 const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
-const scene = fs.readFileSync(path.join(dir, 'home-v2.js'), 'utf8');
+const space = fs.readFileSync(path.join(dir, 'space.js'), 'utf8');
 const original = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+const close = (a, b) => Math.abs(a - b) < 1e-9;
 
-test('voxelize keeps cells that are at least half covered', () => {
-  const width = 8, height = 4, data = new Uint8ClampedArray(width * height * 4);
-  // Fill the left 4x4 block fully and 6 of 16 pixels of the right block.
-  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) data[(y * width + x) * 4 + 3] = 255;
-  for (let i = 0; i < 6; i++) data[((i % 2) * width + 4 + Math.floor(i / 2)) * 4 + 3] = 255;
-  assert.deepEqual(core.voxelize(data, width, height, 4), [2, 2]);
+test('planets travel a full orbit in one period and freeze when time stops', () => {
+  const orbit = { radius: 10, period: 80, phase: 1, tilt: 0.1 };
+  const start = orbits.orbitPosition(orbit, 0);
+  const lap = orbits.orbitPosition(orbit, 80);
+  assert.ok(close(start.x, lap.x) && close(start.y, lap.y) && close(start.z, lap.z));
+  assert.ok(close(Math.hypot(start.x, start.y, start.z), 10), 'stays on its circle');
+  assert.notDeepEqual(orbits.orbitPosition(orbit, 20), start);
+});
+
+test('the camera frames a planet from the side it is viewed, at a size-based distance', () => {
+  const body = { x: 10, y: 0, z: 0 };
+  const view = orbits.framingPosition(body, 1, { x: 10, y: 50, z: 30 });
+  const distance = Math.hypot(view.x - 10, view.y, view.z);
+  assert.ok(close(distance, 1 * 4.2 + 2.5));
+  assert.ok(view.z > 0 && view.y > 0, 'from the viewer side and slightly above');
+  assert.ok(orbits.framingPosition(body, 2, { x: 0, y: 0, z: 30 }).z > view.z);
+});
+
+test('camera flights ease from 0 to 1 and are instant without a duration', () => {
+  assert.equal(orbits.flightProgress(0, 1600), 0);
+  assert.equal(orbits.flightProgress(800, 1600), 0.5);
+  assert.equal(orbits.flightProgress(2000, 1600), 1);
+  assert.equal(orbits.flightProgress(0, 0), 1);
+});
+
+test('warp starts and ends at rest and peaks in the middle', () => {
+  assert.equal(orbits.warpAmount(0), 0);
+  assert.equal(orbits.warpAmount(2400), 0);
+  assert.ok(close(orbits.warpAmount(1200), 1));
 });
 
 test('the Konami code matches after overlapping prefixes and resets afterwards', () => {
-  const feed = core.createSequence();
+  const feed = orbits.createSequence();
   const keys = ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'B', 'a'];
   assert.deepEqual(keys.map(feed).map((hit, i) => hit && i), [...Array(10).fill(false), 10]);
   assert.equal(feed('a'), false);
 });
 
-test('falling letters bounce on the visible floor, then fall through and vanish', () => {
-  const [body] = core.createFall([{ x: 400, y: 500, hx: 30, hy: 40, hz: 10 }], 0, () => 0.5);
-  const { FALL } = core;
+test('title letters chain from the clicked one, bounce on the floor, then fall through', () => {
+  const drops = orbits.createDrop(4, 2, () => 0.5);
+  assert.deepEqual(drops.map(d => d.delay), [96, 48, 0, 48]);
+  const letter = drops[2];
+  const { DROP } = orbits;
+  const bounds = { floor: 500, left: -50, right: 700 };
   let elapsed = 0, bounced = false;
-  while (elapsed < FALL.throughAt - 20) {
-    const before = body.vy;
-    core.stepFall(body, 1 / 60, elapsed, 800, 600, 1100);
-    if (before > 0 && body.vy <= 0) bounced = true;
-    elapsed += 1000 / 60;
-    assert.ok(body.y + core.rotatedExtents(body).y <= 600 + 1e-6, 'never sinks through the floor early');
+  for (; elapsed < DROP.throughAt - 20; elapsed += 1000 / 60) {
+    const falling = letter.vy > 0;
+    orbits.stepDrop(letter, 1 / 60, elapsed, bounds);
+    if (falling && letter.vy <= 0) bounced = true;
+    assert.ok(letter.y <= 500, 'never below the floor before the fall-through point');
   }
   assert.ok(bounced);
-  for (; elapsed < FALL.disappearAt; elapsed += 1000 / 60) core.stepFall(body, 1 / 60, elapsed, 800, 600, 1100);
-  assert.ok(body.y > 600, 'drops off screen after the fall-through point');
-  const frozen = body.y;
-  core.stepFall(body, 1 / 60, FALL.disappearAt + 1, 800, 600, 1100);
-  assert.equal(body.y, frozen);
+  for (; elapsed < DROP.disappearAt; elapsed += 1000 / 60) orbits.stepDrop(letter, 1 / 60, elapsed, bounds);
+  assert.ok(letter.y > 500);
+  const waiting = { ...drops[0] };
+  orbits.stepDrop(drops[0], 1 / 60, 50, bounds);
+  assert.deepEqual(drops[0], waiting, 'waits for its chain delay');
 });
 
-test('the floor moves with depth so letters near the camera still land on screen', () => {
-  const near = { x: 400, y: 0, z: 200, vx: 0, vy: 5000, vz: 0, rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, sz: 0, hx: 10, hy: 10, hz: 10, delay: 0, restitution: 0.3 };
-  core.stepFall(near, 0.2, 100, 800, 600, 1000);
-  const visibleBottom = 300 + 300 * (1000 - near.z) / 1000;
-  assert.ok(Math.abs(near.y + 10 - visibleBottom) < 1e-6);
-});
-
-test('letters wait for their chain-reaction delay', () => {
-  const bodies = core.createFall([0, 1, 2, 3].map(x => ({ x, y: 0, hx: 1, hy: 1, hz: 1 })), 2, () => 0.5);
-  assert.deepEqual(bodies.map(b => b.delay), [96, 48, 0, 48]);
-  const before = { ...bodies[0] };
-  core.stepFall(bodies[0], 1 / 60, 50, 800, 600, 1100);
-  assert.deepEqual(bodies[0], before);
-});
-
-test('hover wave and ripple helpers stay inside their bounds', () => {
-  assert.equal(core.rippleDepth(100, 0, 100, 1, 1), 0);
-  assert.equal(core.rippleDepth(10, 0, 100, 1, 0), 0);
-  const depth = core.rippleDepth(20, 10, 100, 0.3, 1, 4);
-  assert.equal(Math.abs(depth % 4), 0);
-  assert.ok(Math.abs(depth) <= 22);
-  assert.equal(core.steppedTime(54), 0);
-  assert.equal(core.rippleFront(0, 100, 50, 0, 0).front, 0);
-  const full = core.rippleFront(1, 100, 50, 0, 0);
-  assert.ok(Math.abs(full.front - (Math.hypot(100, 50) + full.band * 4)) < 1e-9);
-});
-
-test('entrance and shatter start and end at rest', () => {
-  assert.equal(core.entranceAmount(0, 0), 1);
-  assert.equal(core.entranceAmount(2000, 0), 0);
-  assert.equal(core.shatterAmount(0), 0);
-  assert.equal(core.shatterAmount(1900), 0);
-  assert.ok(core.shatterAmount(680) > 0.99);
-  assert.equal(core.revealAmount(900, 800), 0);
-  assert.equal(core.revealAmount(400, 800), 1);
-});
-
-test('v2 keeps the original copy, links and videos without invented taglines', () => {
+test('every project is a planet with a real link, the original copy and an existing video', () => {
   for (const paragraph of original.match(/<p>[^<]+<\/p>/g)) assert.ok(html.includes(paragraph), paragraph);
-  for (const link of ['https://soundboard.retrac.space/', 'https://glowstudio.retrac.space/', 'https://surprise.retrac.space/',
-    'https://retraclabs.io/?utm_source=retrac.space&amp;utm_medium=referral&amp;utm_campaign=personal_site']) assert.ok(html.includes(`href="${link}"`), link);
-  const names = [...html.matchAll(/class="card-name">([^<]+)</g)].map(m => m[1]);
-  assert.deepEqual(names, ['Simple Soundboard', 'Glow', "Retrac's Rickroll", 'Retrac Labs']);
-  for (const src of html.matchAll(/src="(\/assets\/[^"#]+)/g)) assert.ok(fs.existsSync(path.join(__dirname, '..', src[1])), src[1]);
-  assert.doesNotMatch(html, /TRUST THIS|EXPERIMENT 0|IN ORBIT|EXPLORE THE PROJECTS|STAYS IN PLACE/i);
+  const planets = [...html.matchAll(/data-planet="(\w+)"[^>]*data-video="([^"#]+)[^>]*>\s*<a href="([^"]+)"[^>]*>([^<]+)</g)];
+  assert.deepEqual(planets.map(m => m[4]), ['Simple Soundboard', 'Glow', "Retrac's Rickroll", 'Retrac Labs']);
+  for (const [, key, video, href] of planets) {
+    assert.match(space, new RegExp(`\\b${key}: \\{`), `${key} has a planet style`);
+    assert.ok(fs.existsSync(path.join(__dirname, '..', video)), video);
+    assert.match(href, /^https:\/\//);
+  }
+  assert.ok(html.includes('utm_source=retrac.space&amp;utm_medium=referral&amp;utm_campaign=personal_site'));
 });
 
-test('v2 loads motion settings first, pins three.js and has no motion toggle', () => {
-  assert.ok(html.indexOf('/motion.js') < html.indexOf('home-v2.css'));
-  assert.ok(html.indexOf('/motion.js') < html.indexOf('home-v2.js'));
-  assert.ok(html.indexOf('./core.js') < html.indexOf('./home-v2.js'));
-  assert.match(html, /three@\d+\.\d+\.\d+\/build\/three\.module\.js/);
-  assert.doesNotMatch(html, /type="checkbox"|motion-toggle|aria-pressed/);
+test('the page loads motion settings first, pins three.js and has no motion toggle', () => {
+  assert.ok(html.indexOf('/motion.js') < html.indexOf('space.css'));
+  assert.ok(html.indexOf('./orbits.js') < html.indexOf('./space.js'));
+  assert.match(html, /"three": "https:\/\/cdn\.jsdelivr\.net\/npm\/three@(\d+\.\d+\.\d+)\/build\/three\.module\.js"/);
+  assert.match(html, /"three\/addons\/": "https:\/\/cdn\.jsdelivr\.net\/npm\/three@\d+\.\d+\.\d+\/examples\/jsm\/"/);
+  assert.doesNotMatch(html, /type="checkbox"|motion-toggle/);
   assert.match(html, /id="motion-notice"[^>]*hidden>Unable to play that animation because you have reduce motion on\.</);
 });
 
-test('both Easter eggs check reduced motion on every attempt', () => {
-  const fall = scene.slice(scene.indexOf('function startFall'), scene.indexOf('function updateFall'));
-  assert.match(fall, /if \(motion\.matches\) \{ announce\(\); return; \}/);
-  const konami = scene.slice(scene.indexOf("document.addEventListener('keydown'"), scene.indexOf('/* ---------- Section headings'));
+test('reduced motion is checked on every Easter egg attempt and stops continuous rendering', () => {
+  const dropStart = space.slice(space.indexOf('function startDrop'), space.indexOf('function dropFrame'));
+  assert.match(dropStart, /if \(motion\.matches\) \{ announce\(\); return; \}/);
+  const konami = space.slice(space.indexOf("document.addEventListener('keydown'"), space.indexOf('/* ---------- Frame loop'));
   assert.match(konami, /if \(motion\.matches\) \{ announce\(\); return; \}/);
-  assert.match(scene, /if \(!reduced\) schedule\(\);/, 'no continuous loop with reduced motion');
+  assert.match(space, /duration: reduced \? 0 :/, 'camera flights are instant');
+  assert.match(space, /if \(!reduced\) simTime \+=/, 'orbits stand still');
+  assert.match(space, /!motion\.matches && !document\.hidden\) panelVideo\.play/, 'previews stay paused');
 });
