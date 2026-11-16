@@ -21,10 +21,35 @@ function announce() {
   noticeTimer = setTimeout(() => { notice.hidden = true; }, 5000);
 }
 
-/* ---------- Title Easter egg: letters drop, bounce, and pop back ---------- */
-// Pure DOM, so it works even if WebGL does not.
+/* ---------- Logo: V1's pixel title, centred at the top ---------- */
+// Pure 2D canvas, so it works even if WebGL does not. It resolves from chunky
+// pixels on load, ripples in a pixel wave under the cursor, and its letters
+// are transparent buttons that start the drop Easter egg.
+const LOGO_STEPS = [56, 40, 28, 20, 14, 10, 7, 5, 3, 2, 1]; // pixel sizes, coarse -> sharp
+const LOGO_STEP_MS = 95;
+const TITLE = 'retrac.space';
+const titleEl = document.querySelector('.title');
+const logoCanvas = document.getElementById('logo');
+const logoCtx = logoCanvas.getContext('2d');
+const logoOff = document.createElement('canvas');
+const logoOffCtx = logoOff.getContext('2d');
+const waveCanvas = document.createElement('canvas');
+const waveCtx = waveCanvas.getContext('2d');
 const lettersEl = document.getElementById('title-letters');
-const titleButtons = Array.from('retrac.space', (char, index) => {
+const logo = { fs: 0, dpr: 1, weight: '700', spacing: 0, px: LOGO_STEPS[0], alpha: 0, ready: false };
+const wave = { active: false, strength: 0, x: 0.5, y: 0.5, running: false, last: 0 };
+titleEl.classList.add('logo-on');
+
+const logoFont = size => `${logo.weight} ${size}px "Space Grotesk", system-ui, sans-serif`;
+function logoParts() {
+  const css = getComputedStyle(root);
+  return [
+    ['retrac', css.getPropertyValue('--fg').trim() || '#ecebf2'],
+    ['.space', css.getPropertyValue('--muted').trim() || '#8d8b99'],
+  ];
+}
+
+const titleButtons = Array.from(TITLE, (char, index) => {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `title-letter${index >= 6 ? ' dim' : ''}`;
@@ -36,12 +61,162 @@ const titleButtons = Array.from('retrac.space', (char, index) => {
 lettersEl.replaceChildren(...titleButtons);
 lettersEl.removeAttribute('aria-hidden');
 
+function sizeLogo() {
+  const css = getComputedStyle(titleEl);
+  const fs = parseFloat(css.fontSize);
+  logo.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  logo.weight = css.fontWeight;
+  logo.spacing = (parseFloat(css.letterSpacing) || 0) / fs;
+  logoCtx.font = logoFont(fs);
+  if ('letterSpacing' in logoCtx) logoCtx.letterSpacing = `${logo.spacing * fs}px`;
+  const width = Math.ceil(logoCtx.measureText(TITLE).width + fs * 0.1);
+  const height = Math.ceil(fs * 1.3);
+  logoCanvas.style.width = `${width}px`;
+  logoCanvas.style.height = `${height}px`;
+
+  // Line the letter buttons up with the glyphs, using the same advances as the drawing.
+  let x = fs * 0.05, index = 0;
+  for (const [text] of logoParts()) {
+    for (let i = 0; i < text.length; i++, index++) {
+      const left = x + logoCtx.measureText(text.slice(0, i)).width;
+      const right = x + logoCtx.measureText(text.slice(0, i + 1)).width;
+      titleButtons[index].style.left = `${left}px`;
+      titleButtons[index].style.width = `${right - left}px`;
+    }
+    x += logoCtx.measureText(text).width;
+  }
+
+  // Resizing the backing store resets the context, so do it last.
+  logoCanvas.width = Math.round(width * logo.dpr);
+  logoCanvas.height = Math.round(height * logo.dpr);
+  logo.fs = fs * logo.dpr;
+}
+
+// Render the text small, then stretch it up with smoothing off.
+function drawLogo() {
+  if (!logo.fs) return;
+  const W = logoCanvas.width, H = logoCanvas.height;
+  const px = Math.max(1, logo.px * logo.dpr);
+  const lw = Math.max(1, Math.ceil(W / px)), lh = Math.max(1, Math.ceil(H / px));
+  if (logoOff.width !== lw || logoOff.height !== lh) { logoOff.width = lw; logoOff.height = lh; }
+  const fs = logo.fs * (lw / W);
+  const c = logoOffCtx;
+  c.clearRect(0, 0, lw, lh);
+  c.font = logoFont(fs);
+  if ('letterSpacing' in c) c.letterSpacing = `${logo.spacing * fs}px`;
+  c.textBaseline = 'middle';
+  let x = fs * 0.05;
+  for (const [text, color] of logoParts()) {
+    c.fillStyle = color;
+    c.fillText(text, x, lh / 2);
+    x += c.measureText(text).width;
+  }
+  logoCtx.clearRect(0, 0, W, H);
+  logoCtx.imageSmoothingEnabled = false;
+  logoCtx.globalAlpha = logo.alpha;
+  logoCtx.drawImage(logoOff, 0, 0, lw, lh, 0, 0, W, H);
+  logoCtx.globalAlpha = 1;
+}
+
+function showLogo() {
+  logo.px = 1;
+  logo.alpha = 1;
+  logo.ready = true;
+  drawLogo();
+}
+
+// Resolve from chunky pixels to sharp, like V1's intro.
+function playLogo() {
+  if (motion.matches) { showLogo(); return; }
+  const begin = performance.now();
+  const total = LOGO_STEPS.length * LOGO_STEP_MS;
+  const tick = now => {
+    if (motion.matches) { showLogo(); return; }
+    // rAF's timestamp can land slightly before `begin`, so clamp at 0.
+    const p = orbits.clamp((now - begin) / total);
+    logo.px = LOGO_STEPS[Math.min(LOGO_STEPS.length - 1, Math.floor(p * LOGO_STEPS.length))];
+    logo.alpha = Math.min(1, p * 3);
+    drawLogo();
+    if (p < 1) requestAnimationFrame(tick);
+    else logo.ready = true;
+  };
+  requestAnimationFrame(tick);
+}
+
+/* Hover: a small, cursor-following pixel wave, as on V1. */
+function trackLogoPointer(event) {
+  if (motion.matches || event.pointerType === 'touch') return;
+  const rect = logoCanvas.getBoundingClientRect();
+  wave.x = orbits.clamp((event.clientX - rect.left) / rect.width);
+  wave.y = orbits.clamp((event.clientY - rect.top) / rect.height);
+  wave.active = true;
+  if (!wave.running) {
+    wave.running = true;
+    wave.last = performance.now();
+    requestAnimationFrame(waveFrame);
+  }
+}
+for (const type of ['pointerenter', 'pointermove']) lettersEl.addEventListener(type, trackLogoPointer);
+for (const type of ['pointerleave', 'pointercancel']) lettersEl.addEventListener(type, () => { wave.active = false; });
+window.addEventListener('blur', () => { wave.active = false; });
+
+function stopWave() {
+  wave.active = false;
+  wave.strength = 0;
+  if (!drop) drawLogo();
+}
+
+function waveFrame(now) {
+  const dt = Math.min(0.05, Math.max(0, now - wave.last) / 1000);
+  wave.last = now;
+  if (motion.matches || drop || !logo.ready) { wave.running = false; stopWave(); return; }
+  wave.strength += ((wave.active ? 1 : 0) - wave.strength) * (1 - Math.exp(-dt * 14));
+  if (!wave.active && wave.strength < 0.005) wave.strength = 0;
+
+  // Restore a pristine logo every frame so moving the cursor leaves no trail.
+  drawLogo();
+  if (!wave.strength) { wave.running = false; return; }
+  const W = logoCanvas.width, H = logoCanvas.height, fs = logo.fs;
+  const cell = Math.max(2, Math.round(3 * logo.dpr));
+  const lw = Math.ceil(W / cell), lh = Math.ceil(H / cell);
+  if (waveCanvas.width !== lw || waveCanvas.height !== lh) { waveCanvas.width = lw; waveCanvas.height = lh; }
+  waveCtx.clearRect(0, 0, lw, lh);
+  waveCtx.drawImage(logoOff, 0, 0, logoOff.width, logoOff.height, 0, 0, lw, lh);
+
+  const center = wave.x * W;
+  const radius = fs * 0.72; // about two to three letters
+  const strip = W / lw;
+  const first = Math.max(0, Math.floor((center - radius) / strip));
+  const last = Math.min(lw, Math.ceil((center + radius) / strip));
+  // A stepped clock and whole-pixel offsets give it a digital, wavy cadence.
+  const time = Math.floor(now / 55) * 0.055;
+  for (let i = first; i < last; i++) {
+    const x = i * strip;
+    const distance = Math.min(1, Math.abs(x + strip / 2 - center) / radius);
+    const mix = (1 - distance * distance) ** 2 * wave.strength;
+    const swing = Math.sin((x - center) / fs * 12 - time * 8 + wave.y * 3);
+    const offset = Math.round(swing * fs * 0.055 * mix / cell) * cell;
+    logoCtx.clearRect(x, 0, strip, H);
+    logoCtx.globalAlpha = 1 - mix;
+    logoCtx.drawImage(logoOff, x * logoOff.width / W, 0, strip * logoOff.width / W, logoOff.height, x, 0, strip, H);
+    logoCtx.globalAlpha = mix;
+    logoCtx.drawImage(waveCanvas, i, 0, 1, lh, x, offset, strip, H);
+  }
+  logoCtx.globalAlpha = 1;
+  requestAnimationFrame(waveFrame);
+}
+
+/* Easter egg: the letters drop, bounce, and pop back. While they fall, the
+   canvas hides and the letter buttons show their own glyphs. */
 let drop = null;
 function startDrop(origin) {
   // Check the live preference on every attempt, including keyboard activation.
   if (motion.matches) { announce(); return; }
-  if (drop) return;
+  if (drop || !logo.ready) return;
   const now = performance.now();
+  wave.active = false;
+  wave.strength = 0;
+  titleEl.classList.add('dropping');
   drop = {
     start: now, last: now,
     rects: titleButtons.map(button => button.getBoundingClientRect()),
@@ -75,11 +250,25 @@ function dropFrame(now) {
 }
 function endDrop() {
   drop = null;
+  titleEl.classList.remove('dropping');
   for (const button of titleButtons) {
     button.style.transform = '';
     button.style.opacity = '';
   }
+  drawLogo();
 }
+
+// Wait for the bold weight before measuring (but never hang on it).
+const fontReady = document.fonts ? document.fonts.load(logoFont(100)).catch(() => {}) : Promise.resolve();
+Promise.race([fontReady, new Promise(resolve => setTimeout(resolve, 1500))]).then(() => {
+  sizeLogo();
+  playLogo();
+});
+window.addEventListener('resize', () => {
+  if (drop) endDrop();
+  sizeLogo();
+  drawLogo();
+});
 
 /* ---------- Renderer ---------- */
 let renderer = null;
@@ -689,6 +878,8 @@ document.addEventListener('visibilitychange', () => {
 motion.addEventListener('change', () => {
   if (motion.matches) {
     endDrop();
+    stopWave();
+    if (logo.fs) showLogo();
     warp = null;
     if (flight) flight.duration = 0;
   }
