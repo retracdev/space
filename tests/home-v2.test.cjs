@@ -90,6 +90,15 @@ test('the page loads motion settings first, pins three.js and has no motion togg
   assert.match(html, /id="motion-notice"[^>]*hidden>Unable to play that animation because you have reduce motion on\.</);
 });
 
+test('the V1 pixel logo sits in the header with its letter buttons and respects reduced motion', () => {
+  assert.match(html, /<h1 class="title">[\s\S]*<canvas id="logo"[\s\S]*id="title-letters"[\s\S]*<\/h1>/);
+  assert.match(space, /const LOGO_STEPS = \[56, 40, 28, 20, 14, 10, 7, 5, 3, 2, 1\]/, 'same pixel resolve as V1');
+  const playLogo = space.slice(space.indexOf('function playLogo'), space.indexOf('function trackLogoPointer'));
+  assert.match(playLogo, /if \(motion\.matches\) \{ showLogo\(\); return; \}/, 'no intro with reduced motion');
+  const hover = space.slice(space.indexOf('function trackLogoPointer'), space.indexOf('function stopWave'));
+  assert.match(hover, /if \(motion\.matches \|\| event\.pointerType === 'touch'\) return;/, 'no hover wave with reduced motion');
+});
+
 test('reduced motion is checked on every Easter egg attempt and stops continuous rendering', () => {
   const dropStart = space.slice(space.indexOf('function startDrop'), space.indexOf('function dropFrame'));
   assert.match(dropStart, /if \(motion\.matches\) \{ announce\(\); return; \}/);
