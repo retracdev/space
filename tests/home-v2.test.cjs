@@ -97,6 +97,10 @@ test('the V1 pixel logo sits in the header with its letter buttons and respects 
   assert.match(playLogo, /if \(motion\.matches\) \{ showLogo\(\); return; \}/, 'no intro with reduced motion');
   const hover = space.slice(space.indexOf('function trackLogoPointer'), space.indexOf('function stopWave'));
   assert.match(hover, /if \(motion\.matches \|\| event\.pointerType === 'touch'\) return;/, 'no hover wave with reduced motion');
+  // Regression: the first frame used to see dt = 0, leave strength at 0 and stop the loop at once.
+  const waveFrame = space.slice(space.indexOf('function waveFrame'), space.indexOf('/* Easter egg'));
+  assert.match(waveFrame, /wave\.last \? [^:]+ : 1 \/ 60/, 'the first frame always advances the wave');
+  assert.match(waveFrame, /if \(wave\.active\) requestAnimationFrame\(waveFrame\);\s*else wave\.running = false;/, 'never stops while hovered');
 });
 
 test('reduced motion is checked on every Easter egg attempt and stops continuous rendering', () => {
