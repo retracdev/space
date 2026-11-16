@@ -152,7 +152,7 @@ function trackLogoPointer(event) {
   wave.active = true;
   if (!wave.running) {
     wave.running = true;
-    wave.last = performance.now();
+    wave.last = 0; // the first frame sets the clock; rAF time can trail performance.now()
     requestAnimationFrame(waveFrame);
   }
 }
@@ -167,7 +167,7 @@ function stopWave() {
 }
 
 function waveFrame(now) {
-  const dt = Math.min(0.05, Math.max(0, now - wave.last) / 1000);
+  const dt = wave.last ? Math.min(0.05, Math.max(0, now - wave.last) / 1000) : 1 / 60;
   wave.last = now;
   if (motion.matches || drop || !logo.ready) { wave.running = false; stopWave(); return; }
   wave.strength += ((wave.active ? 1 : 0) - wave.strength) * (1 - Math.exp(-dt * 14));
@@ -175,7 +175,12 @@ function waveFrame(now) {
 
   // Restore a pristine logo every frame so moving the cursor leaves no trail.
   drawLogo();
-  if (!wave.strength) { wave.running = false; return; }
+  // Only stop once the pointer has left and the wave has faded out.
+  if (!wave.strength) {
+    if (wave.active) requestAnimationFrame(waveFrame);
+    else wave.running = false;
+    return;
+  }
   const W = logoCanvas.width, H = logoCanvas.height, fs = logo.fs;
   // V1 ran this on a 168px title. This logo is about a third of that, so it
   // uses finer pixels and a taller swing to read the same way.
