@@ -14,6 +14,11 @@ toggle.
 
 Run the non-browser checks with `node --test tests/*.test.cjs`.
 
+Use “Try out the new look” before the account controls to switch homepages.
+Opting in stores a host-only `retrac_new_look=1` cookie for one year and sends
+visits to `/` to `/home-v2/`. Turn the same toggle off on V2 to clear the
+cookie and return to `/`. Switching preserves the query string and fragment.
+
 > [!IMPORTANT]
 > **Source Available — MIT Licensed**
 >
