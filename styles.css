@@ -42,11 +42,13 @@ body {
 }
 
 /* ---------- Title ---------- */
-.account {
+.header-controls {
   position: absolute;
   top: 20px;
   left: 24px;
   right: 24px;
+}
+.account {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -76,7 +78,7 @@ body {
 .hero {
   max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(64px, 12vh, 140px) 24px clamp(48px, 8vh, 96px);
+  padding: clamp(96px, 12vh, 140px) 24px clamp(48px, 8vh, 96px);
   display: flex;
   justify-content: center;
 }
@@ -212,8 +214,11 @@ body {
   .company .card { width: 100%; }
 }
 @media (max-width: 400px) {
-  .account { left: 16px; right: 16px; }
+  .header-controls { left: 16px; right: 16px; }
   .hero, .bio, .projects { padding-left: 16px; padding-right: 16px; }
+}
+@media (max-width: 640px) {
+  .hero { padding-top: 112px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bio-content.is-revealing .bio-copy { opacity: 1; }

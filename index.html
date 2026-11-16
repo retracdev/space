@@ -4,12 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>retrac.space</title>
+<script src="/new-look.js"></script>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <script src="motion.js"></script>
+<link rel="stylesheet" href="/new-look.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -17,9 +19,12 @@
 <div class="background-veil" aria-hidden="true"></div>
 
 <header class="hero site-content">
-  <nav class="account" id="account" aria-label="Account" aria-busy="true">
-    <span class="account-placeholder" role="status"><span class="sr-only">Checking account status</span></span>
-  </nav>
+  <div class="header-controls">
+    <button class="new-look-toggle" id="new-look-toggle" type="button" role="switch" aria-checked="false" hidden>Try out the new look</button>
+    <nav class="account" id="account" aria-label="Account" aria-busy="true">
+      <span class="account-placeholder" role="status"><span class="sr-only">Checking account status</span></span>
+    </nav>
+  </div>
   <h1 class="title">
     <span class="sr-only">retrac.space</span>
     <canvas id="title" aria-hidden="true"></canvas>

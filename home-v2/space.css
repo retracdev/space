@@ -79,9 +79,11 @@ button { font: inherit; color: inherit; }
 .logo-on.dropping canvas { visibility: hidden; }
 .logo-on.dropping .title-letter { color: var(--fg); }
 .logo-on.dropping .title-letter.dim { color: var(--muted); }
-.account {
+.header-controls {
   grid-column: 3;
   margin-top: 6px;
+}
+.account {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -270,12 +272,17 @@ button { font: inherit; color: inherit; }
   line-height: 1.5;
 }
 
+@media (max-width: 1100px) {
+  .header-controls { grid-column: 1 / -1; justify-content: center; }
+}
+
 @media (max-width: 640px) {
   /* The logo gets its own centred row, with the account line under it. */
   .top { grid-template-columns: 1fr; justify-items: center; gap: 4px; padding: 14px 16px; }
   :root { --logo: clamp(40px, 13vw, 64px); }
   .title { grid-column: 1; }
-  .account { grid-column: 1; margin-top: 0; font-size: 12px; max-width: 100%; }
+  .header-controls { grid-column: 1; margin-top: 0; font-size: 12px; max-width: 100%; justify-content: center; }
+  .account { font-size: inherit; max-width: 100%; }
   .legend { bottom: 14px; }
   .hint { bottom: 72px; padding: 0 24px; }
   /* The panel becomes a bottom sheet above the planet list. */
