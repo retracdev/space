@@ -182,16 +182,15 @@ function waveFrame(now) {
     return;
   }
   const W = logoCanvas.width, H = logoCanvas.height, fs = logo.fs;
-  // V1 ran this on a 168px title. This logo is about a third of that, so it
-  // uses finer pixels and a taller swing to read the same way.
-  const cell = Math.max(2, Math.round(2 * logo.dpr));
+  // V1's settings, tuned for a large title (the logo is up to 120px here).
+  const cell = Math.max(2, Math.round(3 * logo.dpr));
   const lw = Math.ceil(W / cell), lh = Math.ceil(H / cell);
   if (waveCanvas.width !== lw || waveCanvas.height !== lh) { waveCanvas.width = lw; waveCanvas.height = lh; }
   waveCtx.clearRect(0, 0, lw, lh);
   waveCtx.drawImage(logoOff, 0, 0, logoOff.width, logoOff.height, 0, 0, lw, lh);
 
   const center = wave.x * W;
-  const radius = fs * 1.1; // about three to four letters
+  const radius = fs * 0.72; // about two to three letters
   const strip = W / lw;
   const first = Math.max(0, Math.floor((center - radius) / strip));
   const last = Math.min(lw, Math.ceil((center + radius) / strip));
@@ -202,7 +201,7 @@ function waveFrame(now) {
     const distance = Math.min(1, Math.abs(x + strip / 2 - center) / radius);
     const mix = (1 - distance * distance) ** 2 * wave.strength;
     const swing = Math.sin((x - center) / fs * 12 - time * 8 + wave.y * 3);
-    const offset = Math.round(swing * fs * 0.15 * mix / cell) * cell;
+    const offset = Math.round(swing * fs * 0.07 * mix / cell) * cell;
     logoCtx.clearRect(x, 0, strip, H);
     logoCtx.globalAlpha = 1 - mix;
     logoCtx.drawImage(logoOff, x * logoOff.width / W, 0, strip * logoOff.width / W, logoOff.height, x, 0, strip, H);
