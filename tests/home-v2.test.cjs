@@ -72,7 +72,7 @@ test('title letters chain from the clicked one, bounce on the floor, then fall t
 test('every project is a planet with a real link, the original copy and an existing video', () => {
   for (const paragraph of original.match(/<p>[^<]+<\/p>/g)) assert.ok(html.includes(paragraph), paragraph);
   const planets = [...html.matchAll(/data-planet="(\w+)"[^>]*data-video="([^"#]+)[^>]*>\s*<a href="([^"]+)"[^>]*>([^<]+)</g)];
-  assert.deepEqual(planets.map(m => m[4]), ['Simple Soundboard', 'Glow', "Retrac's Rickroll", 'Retrac Labs']);
+  assert.deepEqual(planets.map(m => m[4]), ['Simple Soundboard', 'Toptext', 'Glow', "Retrac's Rickroll", 'Retrac Labs']);
   for (const [, key, video, href] of planets) {
     assert.match(space, new RegExp(`\\b${key}: \\{`), `${key} has a planet style`);
     assert.ok(fs.existsSync(path.join(__dirname, '..', video)), video);
