@@ -348,6 +348,11 @@ const projects = [
     href: "https://soundboard.retrac.space/",
   },
   {
+    name: "Toptext",
+    video: "assets/toptext-loop.mp4",
+    href: "https://toptext.retrac.space/",
+  },
+  {
     name: "Glow",
     video: "assets/glow-loop.mp4",
     href: "https://glowstudio.retrac.space/",
