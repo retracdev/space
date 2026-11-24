@@ -348,6 +348,11 @@ const projects = [
     href: "https://soundboard.retrac.space/",
   },
   {
+    name: "Reaction Arena",
+    video: "assets/reaction-arena-loop.mp4",
+    href: "https://reaction.retrac.space/",
+  },
+  {
     name: "Toptext",
     video: "assets/toptext-loop.mp4",
     href: "https://toptext.retrac.space/",
