@@ -419,9 +419,10 @@ function ringTexture(color, seed) {
 // Muted, natural tones. Radius/orbit are in scene units, periods in seconds.
 const PLANETS = {
   soundboard: { colors: ['#232c40', '#56688a', '#a7b3c9'], bands: 6, warp: 2.2, radius: 1.0, orbit: 8.5, period: 80, phase: 0.6, tilt: 0.06, seed: 11, swatch: '#8193b3' },
-  toptext: { colors: ['#36202b', '#85576c', '#d4b4c2'], bands: 4, warp: 3, radius: 0.75, orbit: 11, period: 95, phase: 5.4, tilt: -0.02, seed: 17, swatch: '#bf8ea4' },
-  glow: { colors: ['#1c2c2b', '#4f6e68', '#b7cfc6'], radius: 0.9, orbit: 13.5, period: 110, phase: 2.5, tilt: -0.05, seed: 23, swatch: '#8fb8ad', lights: '#d8f2e6', atmosphere: '#a8dccd' },
-  rickroll: { colors: ['#3a231c', '#8a604c', '#d2b296'], radius: 1.15, orbit: 17, period: 145, phase: 4.3, tilt: 0.08, seed: 37, swatch: '#bd977f', ring: '#bfa38c' },
+  reaction: { colors: ['#38301a', '#8a7840', '#d8c991'], bands: 5, warp: 2.6, radius: 0.8, orbit: 10.75, period: 88, phase: 3.4, tilt: 0.04, seed: 29, swatch: '#c2b06a' },
+  toptext: { colors: ['#36202b', '#85576c', '#d4b4c2'], bands: 4, warp: 3, radius: 0.75, orbit: 13, period: 95, phase: 5.4, tilt: -0.02, seed: 17, swatch: '#bf8ea4' },
+  glow: { colors: ['#1c2c2b', '#4f6e68', '#b7cfc6'], radius: 0.9, orbit: 15.5, period: 110, phase: 2.5, tilt: -0.05, seed: 23, swatch: '#8fb8ad', lights: '#d8f2e6', atmosphere: '#a8dccd' },
+  rickroll: { colors: ['#3a231c', '#8a604c', '#d2b296'], radius: 1.15, orbit: 18, period: 145, phase: 4.3, tilt: 0.08, seed: 37, swatch: '#bd977f', ring: '#bfa38c' },
   labs: { colors: ['#25223a', '#6c6790', '#c9c4dc'], bands: 10, warp: 1.3, radius: 1.75, orbit: 24, period: 200, phase: 1.2, tilt: -0.03, seed: 51, swatch: '#9f99bd', ring: '#a7a1c2', moon: true },
 };
 
